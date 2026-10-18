@@ -39,7 +39,7 @@ spring:
 
 server:
   forward-headers-strategy: native   # hiểu đúng X-Forwarded-For từ Nginx (SEC-06/SEC-08)
-  port: ${SERVER_PORT:8085}
+  port: ${SERVER_PORT:8310}
   servlet:
     encoding:
       charset: UTF-8
@@ -61,8 +61,8 @@ storage:
   root-path: ${STORAGE_ROOT_PATH:/data/photo-storage}
 
 app:
-  frontend-url: ${FRONTEND_URL:http://localhost:8443}
-  api-base-url: ${API_BASE_URL:http://localhost:8085}
+  frontend-url: ${FRONTEND_URL:http://localhost:8300}
+  api-base-url: ${API_BASE_URL:http://localhost:8310}
   cookie-secure: ${COOKIE_SECURE:true}
   dev-login-enabled: ${DEV_LOGIN_ENABLED:false}   # mặc định FALSE
   dev-login-secret: ${DEV_LOGIN_SECRET:}

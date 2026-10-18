@@ -1,4 +1,4 @@
-HELP.md
+﻿HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
@@ -46,7 +46,8 @@ target/
 # ── Environment variables (QUAN TRONG - KHONG COMMIT) ────────────
 .env
 .env.*
-!.env.example      # chi commit file mau, khong co gia tri that
+# chi commit file mau, khong co gia tri that
+!.env.example
 
 # ── Upload files ────────────────────────────────────────────────
 uploads/

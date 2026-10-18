@@ -3,7 +3,8 @@ version: '3.9'
 services:
   backend:
     build: .
-    container_name: travelPhoto-backend
+    container_name: travelphoto-api
+    image: travelphoto-api:latest
     restart: unless-stopped
     env_file:
       - .env
@@ -14,15 +15,21 @@ services:
       # env_file (xem STORAGE_HOST_PATH vs STORAGE_ROOT_PATH ben duoi).
       STORAGE_ROOT_PATH:      "/data/photo-storage"
     ports:
-      - "${SERVER_PORT:-8085}:${SERVER_PORT:-8085}"
+      # Quy tac [PP][SS]: travelphoto = ma 83 -> API 8310. Chi bind localhost.
+      - "127.0.0.1:${SERVER_PORT:-8310}:${SERVER_PORT:-8310}"
     volumes:
       # STORAGE_HOST_PATH = duong dan THAT tren may host (server that).
       # Ve phai luon co dinh /data/photo-storage - phai khop voi STORAGE_ROOT_PATH
       # ma app doc BEN TRONG container (xem storage.root-path trong application.yml).
       - ${STORAGE_HOST_PATH:-/data/photo-storage}:/data/photo-storage
     networks:
+      - internal
       - shared-network
 networks:
+  # Mang noi bo du an: web (nginx) goi api qua ten service "backend".
+  # API tao mang nay; web khai bao external -> deploy api truoc.
+  internal:
+    name: travelphoto-net
   shared-network:
     name: ${EXTERNAL_NETWORK_NAME:-shared-network}
     external: true
