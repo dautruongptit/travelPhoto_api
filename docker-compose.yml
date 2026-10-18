@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   backend:
     build: .
@@ -26,10 +24,11 @@ services:
       - internal
       - shared-network
 networks:
-  # Mang noi bo du an: web (nginx) goi api qua ten service "backend".
-  # API tao mang nay; web khai bao external -> deploy api truoc.
+  # Mang noi bo du an dung chung web + api (web goi api qua ten service "backend").
+  # Tao 1 lan tren server: docker network create travelphoto-net
   internal:
     name: travelphoto-net
+    external: true
   shared-network:
     name: ${EXTERNAL_NETWORK_NAME:-shared-network}
     external: true
