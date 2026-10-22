@@ -4,12 +4,16 @@ import com.travelalbum.dto.response.EventResponse;
 import com.travelalbum.entity.Event;
 import com.travelalbum.entity.User;
 import com.travelalbum.repository.PhotoRepository;
+import com.travelalbum.repository.ShareLinkRepository;
 import com.travelalbum.repository.UserRepository;
 import org.springframework.data.domain.PageRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -21,12 +25,15 @@ public class EventMapper {
     private final UserMapper userMapper;
     private final PhotoUrlBuilder photoUrlBuilder;
     private final PhotoRepository photoRepository;
+    private final ShareLinkRepository shareLinkRepository;
 
     public EventResponse toResponse(Event event) {
         String ownerName = userRepository.findById(event.getOwnerId())
                 .map(userMapper::toDisplayName)
                 .orElse(null);
-        return toResponse(event, ownerName);
+        boolean hasActiveLink = !event.isPublicAlbum()
+                && shareLinkRepository.existsActiveByEventId(event.getId(), LocalDateTime.now());
+        return toResponse(event, ownerName, hasActiveLink);
     }
 
     /**
@@ -40,8 +47,10 @@ public class EventMapper {
         List<Long> ownerIds = events.stream().map(Event::getOwnerId).distinct().toList();
         Map<Long, String> ownerNameById = userRepository.findAllById(ownerIds).stream()
                 .collect(Collectors.toMap(User::getId, userMapper::toDisplayName));
+        List<Long> eventIds = events.stream().map(Event::getId).toList();
+        Set<Long> withActiveLink = new HashSet<>(shareLinkRepository.findEventIdsWithActiveLink(eventIds, LocalDateTime.now()));
         return events.stream()
-                .map(event -> toResponse(event, ownerNameById.get(event.getOwnerId())))
+                .map(event -> toResponse(event, ownerNameById.get(event.getOwnerId()), withActiveLink.contains(event.getId())))
                 .toList();
     }
 
@@ -55,7 +64,14 @@ public class EventMapper {
                 .toList();
     }
 
-    private EventResponse toResponse(Event event, String ownerName) {
+    private static String visibilityOf(Event event, boolean hasActiveLink) {
+        if (event.isPublicAlbum()) {
+            return "public";
+        }
+        return hasActiveLink ? "link" : "private";
+    }
+
+    private EventResponse toResponse(Event event, String ownerName, boolean hasActiveLink) {
         String coverImageUrl = event.getCoverImagePath() != null
                 ? photoUrlBuilder.buildEventCoverUrl(event.getId())
                 : null;
@@ -69,6 +85,7 @@ public class EventMapper {
                 .endDate(event.getEndDate())
                 .location(event.getLocation())
                 .coverImageUrl(coverImageUrl)
+                .visibility(visibilityOf(event, hasActiveLink))
                 .previewImageUrls(previewUrls(event))
                 .photoCount(event.getPhotoCount())
                 .totalSize(event.getTotalSize())

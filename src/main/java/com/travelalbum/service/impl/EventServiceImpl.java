@@ -161,6 +161,15 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
+    @Transactional
+    public EventResponse setPublic(Long id, boolean publicAlbum) {
+        Event event = eventRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Event not found"));
+        event.setPublicAlbum(publicAlbum);
+        return eventMapper.toResponse(eventRepository.save(event));
+    }
+
+    @Override
     public Page<EventResponse> list(Pageable pageable, Long requesterId, boolean isAdmin) {
         // ADMIN xem toàn bộ (dùng cho AdminController/dashboard quản trị); USER chỉ thấy
         // event của chính mình — trước đây findAll() không lọc, lộ event của user khác.

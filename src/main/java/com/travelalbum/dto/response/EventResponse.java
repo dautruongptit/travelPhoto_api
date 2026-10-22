@@ -18,6 +18,8 @@ public class EventResponse {
     private LocalDate endDate;
     private String location;
     private String coverImageUrl;
+    /** Quyền xem: "private" | "link" (có link chia sẻ còn hiệu lực) | "public". */
+    private String visibility;
     /** URL thumbnail của tối đa 3 ảnh trong album (dùng ghép ảnh đại diện thẻ album). */
     private java.util.List<String> previewImageUrls;
     private int photoCount;

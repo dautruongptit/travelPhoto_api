@@ -60,6 +60,11 @@ public class Event {
     @Column(name = "cover_image_path", length = 500)
     private String coverImagePath;
 
+    /** Chủ album bật "Công khai": mọi người đã đăng nhập xem được (chỉ đọc, không sửa/xóa). */
+    @Column(name = "is_public", nullable = false)
+    @Builder.Default
+    private boolean publicAlbum = false;
+
     @Column(name = "photo_count", nullable = false)
     @Builder.Default
     private int photoCount = 0;

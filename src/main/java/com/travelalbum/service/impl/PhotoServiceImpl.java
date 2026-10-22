@@ -276,7 +276,12 @@ public class PhotoServiceImpl implements PhotoService {
             return true;
         }
 
-        // 3. Share token
+        // 3. Album công khai: mọi người đã đăng nhập xem được (chỉ đọc)
+        if (requesterId != null && photo.getEvent().isPublicAlbum()) {
+            return true;
+        }
+
+        // 4. Share token
         if (token != null && !token.isBlank()) {
             return shareLinkRepository.findByTokenAndActiveTrue(token)
                     .filter(l -> l.getExpiredAt() == null || l.getExpiredAt().isAfter(LocalDateTime.now()))

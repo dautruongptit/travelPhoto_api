@@ -4,6 +4,7 @@ import com.travelalbum.dto.response.EventResponse;
 import com.travelalbum.entity.Event;
 import com.travelalbum.entity.User;
 import com.travelalbum.repository.PhotoRepository;
+import com.travelalbum.repository.ShareLinkRepository;
 import com.travelalbum.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 
@@ -23,7 +24,8 @@ class EventMapperTest {
     private final UserMapper userMapper = new UserMapper();
     private final PhotoUrlBuilder photoUrlBuilder = mock(PhotoUrlBuilder.class);
     private final PhotoRepository photoRepository = mock(PhotoRepository.class);
-    private final EventMapper eventMapper = new EventMapper(userRepository, userMapper, photoUrlBuilder, photoRepository);
+    private final ShareLinkRepository shareLinkRepository = mock(ShareLinkRepository.class);
+    private final EventMapper eventMapper = new EventMapper(userRepository, userMapper, photoUrlBuilder, photoRepository, shareLinkRepository);
 
     private Event event(long id, long ownerId) {
         return Event.builder().id(id).ownerId(ownerId).name("Event " + id).build();
@@ -74,5 +76,22 @@ class EventMapperTest {
             arg.forEach(actual::add);
             return actual.equals(new java.util.HashSet<>(java.util.Arrays.asList(expected)));
         });
+    }
+
+    @Test
+    void visibility_private_link_public() {
+        Event priv = event(1L, 1L);
+        Event linked = event(2L, 1L);
+        Event pub = event(3L, 1L);
+        pub.setPublicAlbum(true);
+        when(userRepository.findAllById(anyIterableOf(1L))).thenReturn(List.of());
+        when(shareLinkRepository.findEventIdsWithActiveLink(org.mockito.ArgumentMatchers.anyCollection(),
+                org.mockito.ArgumentMatchers.any())).thenReturn(List.of(2L, 3L));
+
+        List<EventResponse> r = eventMapper.toResponseList(List.of(priv, linked, pub));
+
+        assertThat(r.get(0).getVisibility()).isEqualTo("private");
+        assertThat(r.get(1).getVisibility()).isEqualTo("link");
+        assertThat(r.get(2).getVisibility()).isEqualTo("public"); // công khai ưu tiên hơn link
     }
 }

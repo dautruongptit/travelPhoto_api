@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -79,6 +80,13 @@ public class EventController {
     }
 
     @Auditable(action = "DELETE_EVENT", targetType = "EVENT")
+    @PutMapping("/{id}/public")
+    @PreAuthorize("hasRole('ADMIN') or @eventSecurity.isOwner(#id, authentication)")
+    public ApiResponse<EventResponse> setPublic(@PathVariable Long id,
+                                                @RequestBody com.travelalbum.dto.request.SetPublicRequest req) {
+        return ApiResponse.success("OK", eventService.setPublic(id, req.publicAlbum()));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @eventSecurity.isOwner(#id, authentication)")
     public ApiResponse<Void> delete(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {

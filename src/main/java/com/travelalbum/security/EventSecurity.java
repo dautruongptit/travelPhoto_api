@@ -22,11 +22,12 @@ public class EventSecurity {
             .orElse(false);
     }
 
-    /** Owner hoặc bất kỳ member nào (VIEWER/EDITOR) đều xem được event/danh sách ảnh. */
+    /** Owner, member (VIEWER/EDITOR) hoặc bất kỳ người đã đăng nhập nếu album ở chế độ công khai. */
     public boolean canView(Long eventId, Authentication authentication) {
         UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
         return isOwner(eventId, authentication)
-            || eventMemberRepository.existsByEventIdAndUserId(eventId, principal.getId());
+            || eventMemberRepository.existsByEventIdAndUserId(eventId, principal.getId())
+            || eventRepository.findById(eventId).map(e -> e.isPublicAlbum()).orElse(false);
     }
 
     /** Owner hoặc member role EDITOR mới upload được. */

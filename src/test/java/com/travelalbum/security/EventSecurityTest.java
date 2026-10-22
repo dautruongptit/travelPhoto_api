@@ -85,4 +85,22 @@ class EventSecurityTest {
 
         assertThat(eventSecurity.canUpload(10L, authentication)).isFalse();
     }
+
+    @Test
+    void canView_true_whenAlbumIsPublic_forAnyLoggedInUser() {
+        asUser(3L);
+        Event pub = Event.builder().id(10L).ownerId(1L).publicAlbum(true).build();
+        when(eventRepository.findById(10L)).thenReturn(Optional.of(pub));
+
+        assertThat(eventSecurity.canView(10L, authentication)).isTrue();
+    }
+
+    @Test
+    void canUpload_false_whenAlbumIsPublic_butNotOwnerOrEditor() {
+        asUser(3L);
+        Event pub = Event.builder().id(10L).ownerId(1L).publicAlbum(true).build();
+        when(eventRepository.findById(10L)).thenReturn(Optional.of(pub));
+
+        assertThat(eventSecurity.canUpload(10L, authentication)).isFalse();
+    }
 }
