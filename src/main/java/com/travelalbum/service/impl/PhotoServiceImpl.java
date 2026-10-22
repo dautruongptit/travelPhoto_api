@@ -20,6 +20,7 @@ import com.travelalbum.repository.UserRepository;
 import com.travelalbum.service.AuditLogService;
 import com.travelalbum.service.PhotoService;
 import com.travelalbum.storage.ExifInfo;
+import com.travelalbum.storage.HeicSupport;
 import com.travelalbum.storage.RawImageSupport;
 import com.travelalbum.storage.RawPreview;
 import com.travelalbum.storage.StorageService;
@@ -95,14 +96,14 @@ public class PhotoServiceImpl implements PhotoService {
                 Integer width = stored.width();
                 Integer height = stored.height();
                 String previewPath = null;
-                if (exif != null && exif.swapsDimensions() && !RawImageSupport.isRawFileName(file.getOriginalFilename())) {
+                if (exif != null && exif.swapsDimensions() && !HeicSupport.needsPreview(file.getOriginalFilename())) {
                     // Ảnh chụp dọc bằng điện thoại: file lưu 2560x1184 + Orientation=6 -> hiển thị 1184x2560
                     Integer tmp = width;
                     width = height;
                     height = tmp;
                 }
-                if (RawImageSupport.isRawFileName(file.getOriginalFilename())) {
-                    // Giữ file RAW gốc để tải về + tạo JPEG xem trước để hiển thị trên web.
+                if (HeicSupport.needsPreview(file.getOriginalFilename())) {
+                    // RAW / HEIC: giữ file gốc để tải về + tạo JPEG xem trước để hiển thị trên web.
                     RawPreview preview = storageService.createRawPreview(user.getStorageFolder(), stored.relativePath());
                     if (preview != null) {
                         previewPath = preview.relativePath();
@@ -188,6 +189,7 @@ public class PhotoServiceImpl implements PhotoService {
         if (photo.getPreviewPath() != null) {
             storageService.delete(fileOwner.getStorageFolder(), photo.getPreviewPath());
         }
+        storageService.delete(fileOwner.getStorageFolder(), com.travelalbum.storage.ThumbnailSupport.thumbPathFor(photo.getPath()));
 
         Event event = photo.getEvent();
         event.setPhotoCount(Math.max(0, event.getPhotoCount() - 1));
@@ -291,6 +293,13 @@ public class PhotoServiceImpl implements PhotoService {
         }
         if (file.getSize() > MAX_SIZE) {
             throw new BusinessException("File too large", "FILE_TOO_LARGE");
+        }
+        if (HeicSupport.isHeicFileName(file.getOriginalFilename())) {
+            // HEIC/HEIF (ảnh iPhone gốc): kiểm tra chữ ký ISO BMFF, Content-Type do client gửi không đáng tin
+            if (!HeicSupport.hasHeicSignature(readHeader(file))) {
+                throw new BusinessException("Invalid HEIC file", "INVALID_TYPE");
+            }
+            return;
         }
         if (RawImageSupport.isRawFileName(file.getOriginalFilename())) {
             // RAW: trình duyệt thường gửi application/octet-stream nên không tin Content-Type,

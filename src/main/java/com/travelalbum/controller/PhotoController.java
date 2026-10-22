@@ -122,6 +122,34 @@ public class PhotoController {
      * Ảnh để HIỂN THỊ trên web: RAW -> JPEG xem trước đã tạo lúc upload; ảnh thường -> chính
      * file gốc. Cùng quy tắc quyền với download (owner/member/share token).
      */
+    @GetMapping("/api/photos/{id}/thumbnail")
+    public void thumbnail(@PathVariable Long id,
+                          @RequestParam(required = false) String token,
+                          @AuthenticationPrincipal UserPrincipal principal,
+                          HttpServletResponse response) throws IOException {
+        Long requesterId = principal != null ? principal.getId() : null;
+        boolean isAdmin = principal != null && principal.isAdmin();
+
+        Photo photo = photoService.getPhotoForDownload(id, token, requesterId, isAdmin);
+        String parentFolder = resolveStorageFolder(photo);
+
+        boolean converted = com.travelalbum.storage.HeicSupport.needsPreview(photo.getOriginalName());
+        String sourcePath = converted ? photo.getPreviewPath() : photo.getPath();
+        if (sourcePath == null) {
+            throw new NotFoundException("No thumbnail available for this photo");
+        }
+        Resource resource = storageService.loadThumbnail(
+                parentFolder, com.travelalbum.storage.ThumbnailSupport.thumbPathFor(photo.getPath()), sourcePath);
+        if (!resource.exists()) {
+            throw new NotFoundException("Photo file not found in storage");
+        }
+        response.setContentType(MediaType.IMAGE_JPEG_VALUE);
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "private, max-age=86400");
+        try (InputStream in = resource.getInputStream(); OutputStream out = response.getOutputStream()) {
+            in.transferTo(out);
+        }
+    }
+
     @GetMapping("/api/photos/{id}/preview")
     public void preview(@PathVariable Long id,
                         @RequestParam(required = false) String token,
@@ -133,7 +161,7 @@ public class PhotoController {
         Photo photo = photoService.getPhotoForDownload(id, token, requesterId, isAdmin);
         String parentFolder = resolveStorageFolder(photo);
 
-        boolean raw = com.travelalbum.storage.RawImageSupport.isRawFileName(photo.getOriginalName());
+        boolean raw = com.travelalbum.storage.HeicSupport.needsPreview(photo.getOriginalName());
         String relativePath = raw ? photo.getPreviewPath() : photo.getPath();
         if (relativePath == null) {
             throw new NotFoundException("No preview available for this photo");

@@ -182,6 +182,46 @@ class PhotoServiceImplTest {
     }
 
     @Test
+    void uploadMultiple_acceptsHeicWithIsoBmffSignature_andStoresPreview() {
+        Event event = ownedEvent();
+        when(eventRepository.findById(10L)).thenReturn(Optional.of(event));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner(0L, 100_000_000L)));
+        when(storageService.store(eq("dautruong_000001"), eq("ev-folder"), any()))
+                .thenReturn(new StoredFile("IMG_8219.HEIC", "ev-folder/IMG_8219.HEIC", "chk", null, null));
+        when(storageService.createRawPreview("dautruong_000001", "ev-folder/IMG_8219.HEIC"))
+                .thenReturn(new RawPreview("ev-folder/.previews/IMG_8219.HEIC.jpg", 1737, 3088));
+        when(photoRepository.save(any(Photo.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(photoMapper.toResponse(any(Photo.class))).thenReturn(PhotoResponse.builder().id(1L).build());
+
+        byte[] heic = new byte[64];
+        heic[3] = 0x18; heic[4] = 'f'; heic[5] = 't'; heic[6] = 'y'; heic[7] = 'p';
+        heic[8] = 'h'; heic[9] = 'e'; heic[10] = 'i'; heic[11] = 'c';
+        MultipartFile[] files = { new MockMultipartFile("files", "IMG_8219.HEIC", "image/heic", heic) };
+
+        UploadResultResponse result = photoService.uploadMultiple(10L, files, 1L);
+
+        assertThat(result.getUploaded()).isEqualTo(1);
+        org.mockito.ArgumentCaptor<Photo> captor = org.mockito.ArgumentCaptor.forClass(Photo.class);
+        verify(photoRepository).save(captor.capture());
+        assertThat(captor.getValue().getPreviewPath()).isEqualTo("ev-folder/.previews/IMG_8219.HEIC.jpg");
+        assertThat(captor.getValue().getWidth()).isEqualTo(1737);   // kích thước hiển thị lấy từ preview
+        assertThat(captor.getValue().getHeight()).isEqualTo(3088);
+    }
+
+    @Test
+    void uploadMultiple_rejectsHeicExtensionWithoutHeifSignature() {
+        when(eventRepository.findById(10L)).thenReturn(Optional.of(ownedEvent()));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner(0L, 100_000_000L)));
+        MultipartFile[] files = { new MockMultipartFile("files", "fake.heic", "image/heic", "plain text, not heif".getBytes()) };
+
+        UploadResultResponse result = photoService.uploadMultiple(10L, files, 1L);
+
+        assertThat(result.getUploaded()).isEqualTo(0);
+        assertThat(result.getFailures().get(0).getErrorCode()).isEqualTo("INVALID_TYPE");
+        verify(storageService, never()).store(anyString(), anyString(), any());
+    }
+
+    @Test
     void uploadMultiple_rejectsRawExtensionWithoutRawSignature() {
         when(eventRepository.findById(10L)).thenReturn(Optional.of(ownedEvent()));
         when(userRepository.findById(1L)).thenReturn(Optional.of(owner(0L, 100_000_000L)));

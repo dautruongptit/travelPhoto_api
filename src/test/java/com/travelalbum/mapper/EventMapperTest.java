@@ -3,6 +3,7 @@ package com.travelalbum.mapper;
 import com.travelalbum.dto.response.EventResponse;
 import com.travelalbum.entity.Event;
 import com.travelalbum.entity.User;
+import com.travelalbum.repository.PhotoRepository;
 import com.travelalbum.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +22,8 @@ class EventMapperTest {
     private final UserRepository userRepository = mock(UserRepository.class);
     private final UserMapper userMapper = new UserMapper();
     private final PhotoUrlBuilder photoUrlBuilder = mock(PhotoUrlBuilder.class);
-    private final EventMapper eventMapper = new EventMapper(userRepository, userMapper, photoUrlBuilder);
+    private final PhotoRepository photoRepository = mock(PhotoRepository.class);
+    private final EventMapper eventMapper = new EventMapper(userRepository, userMapper, photoUrlBuilder, photoRepository);
 
     private Event event(long id, long ownerId) {
         return Event.builder().id(id).ownerId(ownerId).name("Event " + id).build();

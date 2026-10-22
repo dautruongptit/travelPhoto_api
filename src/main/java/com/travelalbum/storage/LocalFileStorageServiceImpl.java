@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -98,7 +99,7 @@ public class LocalFileStorageServiceImpl implements StorageService {
             // RAW: ImageIO không đọc được, kích thước lấy từ bản xem trước (createRawPreview).
             // Ảnh thường: chỉ đọc header để lấy kích thước, không giải mã cả ảnh vào RAM
             // (ảnh tới 50MB có thể lên hàng trăm megapixel).
-            if (!RawImageSupport.isRawFileName(storedName)) {
+            if (!HeicSupport.needsPreview(storedName)) {
                 int[] dim = readImageSize(target);
                 if (dim != null) {
                     width = dim[0];
@@ -121,6 +122,24 @@ public class LocalFileStorageServiceImpl implements StorageService {
             throw new SecurityException("Invalid storage path");
         }
         return new FileSystemResource(target);
+    }
+
+    @Override
+    public Resource loadThumbnail(String parentFolder, String thumbRelativePath, String sourceRelativePath) {
+        Path base = parentDir(parentFolder);
+        Path thumb = root().resolve(thumbRelativePath).normalize();
+        Path source = root().resolve(sourceRelativePath).normalize();
+        if (!thumb.startsWith(base) || !source.startsWith(base)) {
+            throw new SecurityException("Invalid storage path");
+        }
+        if (!Files.exists(thumb) && Files.exists(source)) {
+            // EXIF Orientation của file gốc để thumbnail không bị xoay sai (preview RAW/HEIC đã xoay sẵn)
+            Integer orientation = ExifReader.read(source).map(ExifInfo::orientation).orElse(null);
+            if (!ThumbnailSupport.create(source, thumb, orientation, ThumbnailSupport.DEFAULT_MAX_DIMENSION)) {
+                return new FileSystemResource(source); // định dạng ImageIO không đọc được -> dùng nguyên file nguồn
+            }
+        }
+        return new FileSystemResource(Files.exists(thumb) ? thumb : source);
     }
 
     @Override
@@ -207,7 +226,10 @@ public class LocalFileStorageServiceImpl implements StorageService {
         }
         Path target = source.getParent().resolve(".previews").resolve(source.getFileName() + ".jpg");
         try {
-            return RawImageSupport.writePreview(source, target)
+            Optional<int[]> dims = HeicSupport.isHeicFileName(source.getFileName().toString())
+                    ? HeicSupport.writePreview(source, target)
+                    : RawImageSupport.writePreview(source, target);
+            return dims
                     .map(dim -> new RawPreview(root().relativize(target).toString(), dim[0], dim[1]))
                     .orElse(null);
         } catch (IOException | RuntimeException ex) {

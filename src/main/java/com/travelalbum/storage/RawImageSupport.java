@@ -125,7 +125,7 @@ public final class RawImageSupport {
         }
     }
 
-    private static BufferedImage decodeScaled(byte[] data, int offset) throws IOException {
+    static BufferedImage decodeScaled(byte[] data, int offset) throws IOException {
         try (ImageInputStream in = ImageIO.createImageInputStream(
                 new ByteArrayInputStream(data, offset, data.length - offset))) {
             Iterator<ImageReader> readers = ImageIO.getImageReadersByFormatName("jpeg");
@@ -148,7 +148,7 @@ public final class RawImageSupport {
         }
     }
 
-    private static void writeJpeg(BufferedImage image, Path target) throws IOException {
+    static void writeJpeg(BufferedImage image, Path target) throws IOException {
         // JPEG không hỗ trợ kênh alpha
         BufferedImage rgb = image;
         if (image.getType() != BufferedImage.TYPE_INT_RGB && image.getType() != BufferedImage.TYPE_3BYTE_BGR) {

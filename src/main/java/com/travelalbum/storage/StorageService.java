@@ -15,13 +15,21 @@ public interface StorageService {
     Resource load(String parentFolder, String relativePath);
 
     /**
-     * Tạo bản xem trước JPEG cho file RAW đã lưu tại {@code relativePath} (lấy JPEG nhúng trong
+     * Tạo bản xem trước JPEG cho file RAW hoặc HEIC/HEIF đã lưu tại {@code relativePath} (lấy JPEG nhúng trong
      * RAW). Lưu ở thư mục ".previews" cạnh file gốc. Trả về null nếu RAW không có JPEG nhúng.
      */
     RawPreview createRawPreview(String parentFolder, String relativePath);
 
     /** Doc EXIF that cua file da luu. Tra ve null neu khong co EXIF hoac khong doc duoc. */
     ExifInfo readExif(String parentFolder, String relativePath);
+
+    /**
+     * Thumbnail JPEG nhỏ của ảnh. {@code thumbRelativePath} là nơi lưu thumbnail (xem
+     * ThumbnailSupport.thumbPathFor), {@code sourceRelativePath} là file ảnh hiển thị được dùng để tạo
+     * (ảnh gốc, hoặc bản xem trước JPEG của RAW/HEIC). Tạo lười lần đầu; không tạo được thì trả về
+     * chính file nguồn.
+     */
+    Resource loadThumbnail(String parentFolder, String thumbRelativePath, String sourceRelativePath);
 
     void delete(String parentFolder, String relativePath);
 

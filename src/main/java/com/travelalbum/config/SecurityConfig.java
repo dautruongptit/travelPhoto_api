@@ -64,7 +64,7 @@ public class SecurityConfig {
                         // (?token=) không đăng nhập; quyền thật được kiểm tra trong
                         // PhotoServiceImpl.getPhotoForDownload (owner/member/share token).
                         // Ảnh bìa /api/events/*/cover KHÔNG public nữa (cần đăng nhập + canView).
-                        .requestMatchers(HttpMethod.GET, "/api/photos/download/**", "/api/photos/*/preview").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/photos/download/**", "/api/photos/*/preview", "/api/photos/*/thumbnail").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         // Swagger UI/OpenAPI — chỉ thực sự truy cập được ở dev vì springdoc.*.enabled
                         // đã bị tắt hẳn ở application-prod.yml (SEC-02), permitAll ở đây không mở thêm

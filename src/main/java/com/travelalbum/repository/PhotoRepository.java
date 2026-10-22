@@ -15,6 +15,10 @@ public interface PhotoRepository extends JpaRepository<Photo, Long> {
 
     boolean existsByEventIdAndOriginalName(Long eventId, String originalName);
 
+    /** Id ảnh của event, mới nhất trước — dùng chọn vài ảnh làm thumbnail cho thẻ album. */
+    @Query("SELECT p.id FROM Photo p WHERE p.event.id = :eventId ORDER BY p.id DESC")
+    List<Long> findPhotoIdsByEventId(@Param("eventId") Long eventId, Pageable pageable);
+
     /** Ảnh chưa đọc EXIF (upload trước khi có tính năng EXIF) — dùng cho ExifBackfillService. */
     List<Photo> findTop50ByExifReadAtIsNullOrderByIdAsc();
 

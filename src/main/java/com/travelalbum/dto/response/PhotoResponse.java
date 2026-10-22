@@ -14,7 +14,7 @@ public class PhotoResponse {
     private String thumbnailUrl;
     /** URL ảnh dùng để HIỂN THỊ (RAW -> JPEG xem trước; ảnh thường -> chính ảnh gốc). */
     private String previewUrl;
-    /** true nếu file gốc là RAW (trình duyệt không hiển thị được, chỉ tải về). */
+    /** true nếu file gốc là RAW/HEIC (trình duyệt không hiển thị được, phải dùng previewUrl). */
     private boolean raw;
     private Long size;
     private Integer width;

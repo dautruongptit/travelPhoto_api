@@ -4,7 +4,7 @@ import com.travelalbum.entity.Photo;
 import com.travelalbum.repository.PhotoRepository;
 import com.travelalbum.repository.UserRepository;
 import com.travelalbum.storage.ExifInfo;
-import com.travelalbum.storage.RawImageSupport;
+import com.travelalbum.storage.HeicSupport;
 import com.travelalbum.storage.StorageService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -73,7 +73,7 @@ public class ExifBackfillService {
         photo.setIso(exif.iso());
         photo.setTakenAt(exif.takenAt());
         // Ảnh cũ lưu width/height thô của file: đảo lại nếu EXIF Orientation là xoay 90°
-        if (exif.swapsDimensions() && !RawImageSupport.isRawFileName(photo.getOriginalName())
+        if (exif.swapsDimensions() && !HeicSupport.needsPreview(photo.getOriginalName())
                 && photo.getWidth() != null && photo.getHeight() != null) {
             Integer w = photo.getWidth();
             photo.setWidth(photo.getHeight());

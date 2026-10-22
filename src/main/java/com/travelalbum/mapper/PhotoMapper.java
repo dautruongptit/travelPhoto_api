@@ -34,7 +34,7 @@ public class PhotoMapper {
             .url(photoUrlBuilder.buildUrl(photo.getId()))
             .thumbnailUrl(photoUrlBuilder.buildThumbnailUrl(photo.getId()))
             .previewUrl(photoUrlBuilder.buildPreviewUrl(photo.getId()))
-            .raw(com.travelalbum.storage.RawImageSupport.isRawFileName(photo.getOriginalName()))
+            .raw(com.travelalbum.storage.HeicSupport.needsPreview(photo.getOriginalName()))
             .size(photo.getSize())
             .width(photo.getWidth())
             .height(photo.getHeight())

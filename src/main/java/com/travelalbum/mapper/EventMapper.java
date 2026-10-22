@@ -3,7 +3,9 @@ package com.travelalbum.mapper;
 import com.travelalbum.dto.response.EventResponse;
 import com.travelalbum.entity.Event;
 import com.travelalbum.entity.User;
+import com.travelalbum.repository.PhotoRepository;
 import com.travelalbum.repository.UserRepository;
+import org.springframework.data.domain.PageRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +20,7 @@ public class EventMapper {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PhotoUrlBuilder photoUrlBuilder;
+    private final PhotoRepository photoRepository;
 
     public EventResponse toResponse(Event event) {
         String ownerName = userRepository.findById(event.getOwnerId())
@@ -42,6 +45,16 @@ public class EventMapper {
                 .toList();
     }
 
+    /** Tối đa 3 ảnh mới nhất của album -> URL thumbnail (album trống thì không query). */
+    private List<String> previewUrls(Event event) {
+        if (event.getPhotoCount() <= 0 || event.getId() == null) {
+            return List.of();
+        }
+        return photoRepository.findPhotoIdsByEventId(event.getId(), PageRequest.of(0, 3)).stream()
+                .map(photoUrlBuilder::buildThumbnailUrl)
+                .toList();
+    }
+
     private EventResponse toResponse(Event event, String ownerName) {
         String coverImageUrl = event.getCoverImagePath() != null
                 ? photoUrlBuilder.buildEventCoverUrl(event.getId())
@@ -56,6 +69,7 @@ public class EventMapper {
                 .endDate(event.getEndDate())
                 .location(event.getLocation())
                 .coverImageUrl(coverImageUrl)
+                .previewImageUrls(previewUrls(event))
                 .photoCount(event.getPhotoCount())
                 .totalSize(event.getTotalSize())
                 .createdAt(event.getCreatedAt())
