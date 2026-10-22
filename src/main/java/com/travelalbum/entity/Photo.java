@@ -68,6 +68,27 @@ public class Photo {
     @Column(name = "preview_path", length = 500)
     private String previewPath;
 
+    // EXIF thật đọc lúc upload (V12) — tất cả có thể null
+    @Column(name = "camera_model", length = 120)
+    private String cameraModel;
+
+    @Column(name = "lens_model", length = 120)
+    private String lensModel;
+
+    @Column(name = "focal_length", length = 20)
+    private String focalLength;
+
+    @Column(length = 20)
+    private String aperture;
+
+    @Column(name = "shutter_speed", length = 30)
+    private String shutterSpeed;
+
+    private Integer iso;
+
+    @Column(name = "taken_at")
+    private LocalDateTime takenAt;
+
     @Column(name = "uploaded_by")
     private Long uploadedBy;
 

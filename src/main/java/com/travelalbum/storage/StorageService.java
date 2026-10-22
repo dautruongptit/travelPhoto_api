@@ -20,6 +20,9 @@ public interface StorageService {
      */
     RawPreview createRawPreview(String parentFolder, String relativePath);
 
+    /** Doc EXIF that cua file da luu. Tra ve null neu khong co EXIF hoac khong doc duoc. */
+    ExifInfo readExif(String parentFolder, String relativePath);
+
     void delete(String parentFolder, String relativePath);
 
     void deleteEventFolder(String parentFolder, String eventFolder);

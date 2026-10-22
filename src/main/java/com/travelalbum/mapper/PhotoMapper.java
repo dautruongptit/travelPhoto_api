@@ -39,6 +39,13 @@ public class PhotoMapper {
             .width(photo.getWidth())
             .height(photo.getHeight())
             .uploadedBy(uploadedByName)
+            .cameraModel(photo.getCameraModel())
+            .lensModel(photo.getLensModel())
+            .focalLength(photo.getFocalLength())
+            .aperture(photo.getAperture())
+            .shutterSpeed(photo.getShutterSpeed())
+            .iso(photo.getIso())
+            .takenAt(photo.getTakenAt())
             .uploadedTime(photo.getUploadedTime())
             .build();
     }

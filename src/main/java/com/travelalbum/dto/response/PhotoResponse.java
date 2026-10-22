@@ -20,5 +20,13 @@ public class PhotoResponse {
     private Integer width;
     private Integer height;
     private String uploadedBy;
+    // EXIF thật (null nếu ảnh không có / ảnh cũ chưa đọc EXIF)
+    private String cameraModel;
+    private String lensModel;
+    private String focalLength;
+    private String aperture;
+    private String shutterSpeed;
+    private Integer iso;
+    private LocalDateTime takenAt;
     private LocalDateTime uploadedTime;
 }

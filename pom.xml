@@ -86,6 +86,13 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Doc EXIF (JPEG, RAW dang TIFF: CR2/NEF/ARW/DNG/ORF/RW2..., CR3, RAF) -->
+        <dependency>
+            <groupId>com.drewnoakes</groupId>
+            <artifactId>metadata-extractor</artifactId>
+            <version>2.19.0</version>
+        </dependency>
+
         <!-- Cache cho SessionCache (SEC-10) -->
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>

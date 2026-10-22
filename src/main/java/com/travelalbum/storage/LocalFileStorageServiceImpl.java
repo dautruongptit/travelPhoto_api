@@ -216,6 +216,16 @@ public class LocalFileStorageServiceImpl implements StorageService {
         }
     }
 
+    @Override
+    public ExifInfo readExif(String parentFolder, String relativePath) {
+        Path base = parentDir(parentFolder);
+        Path source = root().resolve(relativePath).normalize();
+        if (!source.startsWith(base)) {
+            throw new SecurityException("Invalid storage path");
+        }
+        return ExifReader.read(source).orElse(null);
+    }
+
     /** Đọc width/height từ header ảnh mà không giải mã toàn bộ pixel. */
     private int[] readImageSize(Path file) {
         try (javax.imageio.stream.ImageInputStream in = ImageIO.createImageInputStream(file.toFile())) {

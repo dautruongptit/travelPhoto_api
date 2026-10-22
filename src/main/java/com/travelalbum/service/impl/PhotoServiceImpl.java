@@ -19,6 +19,7 @@ import com.travelalbum.repository.ShareLinkRepository;
 import com.travelalbum.repository.UserRepository;
 import com.travelalbum.service.AuditLogService;
 import com.travelalbum.service.PhotoService;
+import com.travelalbum.storage.ExifInfo;
 import com.travelalbum.storage.RawImageSupport;
 import com.travelalbum.storage.RawPreview;
 import com.travelalbum.storage.StorageService;
@@ -101,8 +102,17 @@ public class PhotoServiceImpl implements PhotoService {
                         height = preview.height();
                     }
                 }
+                // EXIF thật (máy ảnh, ống kính, khẩu độ, ISO, ngày chụp...) — lỗi đọc không ảnh hưởng upload
+                ExifInfo exif = storageService.readExif(user.getStorageFolder(), stored.relativePath());
                 Photo photo = Photo.builder()
                         .event(event)
+                        .cameraModel(exif != null ? exif.cameraModel() : null)
+                        .lensModel(exif != null ? exif.lensModel() : null)
+                        .focalLength(exif != null ? exif.focalLength() : null)
+                        .aperture(exif != null ? exif.aperture() : null)
+                        .shutterSpeed(exif != null ? exif.shutterSpeed() : null)
+                        .iso(exif != null ? exif.iso() : null)
+                        .takenAt(exif != null ? exif.takenAt() : null)
                         .fileName(stored.fileName())
                         .originalName(file.getOriginalFilename())
                         .path(stored.relativePath())

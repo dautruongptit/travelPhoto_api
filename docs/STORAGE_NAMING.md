@@ -127,8 +127,21 @@ Xóa ảnh RAW xóa cả file gốc lẫn file preview. Xóa event xóa cả th�
 - `V8`: `users.storage_folder`, `events.event_date`
 - `V9`: `events.start_date/end_date/location/cover_image_path`
 - `V11`: `photos.preview_path VARCHAR(500) NULL`
+- `V12`: EXIF thật của ảnh: `camera_model, lens_model, focal_length, aperture, shutter_speed, iso, taken_at` (đều NULL được)
 
-## 7. Việc còn lại / ý tưởng
+## 7. EXIF (Thông tin & EXIF khi xem chi tiết ảnh)
+
+- Lúc upload, backend đọc EXIF thật của file gốc (`ExifReader`, thư viện metadata-extractor, hỗ trợ JPEG và RAW
+  CR2/NEF/ARW/DNG/ORF/RW2/PEF/CR3/RAF) và lưu vào bảng `photos` (V12).
+- Lưu: tên máy (đã gộp hãng + model, không lặp), ống kính, tiêu cự, khẩu độ, tốc độ màn trập, ISO, ngày chụp.
+- **Không lưu GPS** (vị trí chính xác là dữ liệu nhạy cảm, ảnh có thể chia sẻ qua link).
+- Lỗi đọc EXIF không làm hỏng upload; ảnh không có EXIF thì các cột để NULL.
+- `PhotoResponse` trả `cameraModel, lensModel, focalLength, aperture, shutterSpeed, iso, takenAt`.
+- Web: bảng "Thông tin & EXIF" trong Lightbox mở sẵn trên màn hình rộng (phím `I` để ẩn/hiện); khối thông số máy ảnh
+  chỉ hiện khi có EXIF thật.
+- Ảnh đã upload **trước** V12 không có EXIF (cần upload lại, hoặc viết job đọc bù từ file gốc).
+
+## 8. Việc còn lại / ý tưởng
 
 - Thumbnail thật cho ảnh thường (hiện `previewUrl` của ảnh thường trỏ về file gốc, ảnh 50 MB sẽ tải chậm).
 - Xoay preview theo EXIF Orientation.
