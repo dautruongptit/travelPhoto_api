@@ -96,7 +96,11 @@ public class EventController {
                 eventService.deleteBatch(ids, principal.getId(), principal.isAdmin()));
     }
 
+    // Ảnh bìa cũng là dữ liệu riêng tư: phải đăng nhập + là owner/member (web tải qua fetch
+    // có Authorization, xem web/src/components/AuthImg.tsx). Trước đây permitAll -> ai cũng
+    // quét được ảnh bìa mọi event bằng cách đếm id.
     @GetMapping("/{id}/cover")
+    @PreAuthorize("hasRole('ADMIN') or @eventSecurity.canView(#id, authentication)")
     public void cover(@PathVariable Long id, HttpServletResponse response) throws IOException {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Event not found"));

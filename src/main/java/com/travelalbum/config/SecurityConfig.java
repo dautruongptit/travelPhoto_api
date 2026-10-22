@@ -60,12 +60,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/dev/**").permitAll()
                         .requestMatchers("/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers("/api/share/**").permitAll()
-                        // CHỈ 2 endpoint này thật sự cần public: <img src> không gắn được
-                        // Authorization header. KHÔNG permitAll cả "/api/events/**" — trước đây
-                        // làm vậy vô tình để lộ listing/search/getById/listPhotosByEvent (đọc
-                        // được event + ảnh của MỌI user, kể cả chưa đăng nhập). Các endpoint đó
-                        // giờ yêu cầu đăng nhập + lọc theo owner (xem EventController/PhotoController).
-                        .requestMatchers(HttpMethod.GET, "/api/events/*/cover", "/api/photos/download/**").permitAll()
+                        // Chỉ tải ảnh gốc để public ở tầng Security vì người xem qua share link
+                        // (?token=) không đăng nhập; quyền thật được kiểm tra trong
+                        // PhotoServiceImpl.getPhotoForDownload (owner/member/share token).
+                        // Ảnh bìa /api/events/*/cover KHÔNG public nữa (cần đăng nhập + canView).
+                        .requestMatchers(HttpMethod.GET, "/api/photos/download/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         // Swagger UI/OpenAPI — chỉ thực sự truy cập được ở dev vì springdoc.*.enabled
                         // đã bị tắt hẳn ở application-prod.yml (SEC-02), permitAll ở đây không mở thêm

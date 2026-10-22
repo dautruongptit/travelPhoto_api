@@ -25,6 +25,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 
 @Service
@@ -52,12 +53,14 @@ public class ShareServiceImpl implements ShareService {
         }
         EventMemberRole linkRole = role != null ? role : EventMemberRole.VIEWER;
         String token = generateUniqueToken();
+        LocalDateTime expiredAt = LocalDateTime.now().plusDays(DEFAULT_LINK_TTL_DAYS);
         ShareLink link = ShareLink.builder()
             .event(event)
             .token(token)
             .createdBy(userId)
             .active(true)
             .role(linkRole)
+            .expiredAt(expiredAt)
             .build();
         shareLinkRepository.save(link);
         auditLogService.log(userId, "SHARE_EVENT", "EVENT", eventId, null, null, "SUCCESS");
@@ -67,6 +70,7 @@ public class ShareServiceImpl implements ShareService {
             .shareUrl(frontendUrl + "/share/" + token)
             .active(true)
             .role(linkRole)
+            .expiredAt(expiredAt)
             .build();
     }
 
@@ -130,10 +134,16 @@ public class ShareServiceImpl implements ShareService {
         return eventId;
     }
 
+    // Token là bí mật truy cập: dùng SecureRandom (RandomStringUtils mặc định không an toàn
+    // về mặt mật mã, đoán được từ vài token liền nhau) và 32 ký tự (~190 bit).
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final int TOKEN_LENGTH = 32;
+    private static final long DEFAULT_LINK_TTL_DAYS = 30;
+
     private String generateUniqueToken() {
         String token;
         do {
-            token = RandomStringUtils.randomAlphanumeric(12);
+            token = RandomStringUtils.random(TOKEN_LENGTH, 0, 0, true, true, null, SECURE_RANDOM);
         } while (shareLinkRepository.findByTokenAndActiveTrue(token).isPresent());
         return token;
     }
