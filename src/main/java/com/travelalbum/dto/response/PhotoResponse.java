@@ -24,6 +24,7 @@ public class PhotoResponse {
     private String cameraModel;
     private String lensModel;
     private String focalLength;
+    private String focalLength35mm;
     private String aperture;
     private String shutterSpeed;
     private Integer iso;

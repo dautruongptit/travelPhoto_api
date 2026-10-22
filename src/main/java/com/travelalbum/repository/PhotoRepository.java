@@ -15,6 +15,9 @@ public interface PhotoRepository extends JpaRepository<Photo, Long> {
 
     boolean existsByEventIdAndOriginalName(Long eventId, String originalName);
 
+    /** Ảnh chưa đọc EXIF (upload trước khi có tính năng EXIF) — dùng cho ExifBackfillService. */
+    List<Photo> findTop50ByExifReadAtIsNullOrderByIdAsc();
+
     Optional<Photo> findByChecksumAndEventId(String checksum, Long eventId);
 
     /**

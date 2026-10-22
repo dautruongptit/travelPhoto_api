@@ -35,8 +35,11 @@ public final class ExifReader {
             String make = ifd0 != null ? clean(ifd0.getString(ExifIFD0Directory.TAG_MAKE)) : null;
             String model = ifd0 != null ? clean(ifd0.getString(ExifIFD0Directory.TAG_MODEL)) : null;
 
+            Integer orientation = ifd0 != null ? ifd0.getInteger(ExifIFD0Directory.TAG_ORIENTATION) : null;
+
             String lens = null;
             String focal = null;
+            String focal35 = null;
             String aperture = null;
             String shutter = null;
             Integer iso = null;
@@ -44,6 +47,7 @@ public final class ExifReader {
             if (sub != null) {
                 lens = clean(sub.getString(ExifSubIFDDirectory.TAG_LENS_MODEL));
                 focal = clean(sub.getDescription(ExifSubIFDDirectory.TAG_FOCAL_LENGTH));
+                focal35 = clean(sub.getDescription(ExifSubIFDDirectory.TAG_35MM_FILM_EQUIV_FOCAL_LENGTH));
                 aperture = clean(sub.getDescription(ExifSubIFDDirectory.TAG_FNUMBER));
                 shutter = clean(sub.getDescription(ExifSubIFDDirectory.TAG_EXPOSURE_TIME));
                 iso = sub.getInteger(ExifSubIFDDirectory.TAG_ISO_EQUIVALENT);
@@ -53,7 +57,7 @@ public final class ExifReader {
                 }
             }
 
-            ExifInfo info = new ExifInfo(combineCamera(make, model), lens, focal, aperture, shutter, iso, takenAt);
+            ExifInfo info = new ExifInfo(combineCamera(make, model), lens, focal, focal35, aperture, shutter, iso, takenAt, orientation);
             return info.isEmpty() ? Optional.empty() : Optional.of(info);
         } catch (IOException | ImageProcessingException | RuntimeException ex) {
             return Optional.empty();

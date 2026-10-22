@@ -90,9 +90,17 @@ public class PhotoServiceImpl implements PhotoService {
                     continue;
                 }
                 StoredFile stored = storageService.store(user.getStorageFolder(), event.getStorageFolder(), file);
+                // EXIF thật (máy ảnh, ống kính, khẩu độ, ISO, ngày chụp...) — lỗi đọc không ảnh hưởng upload
+                ExifInfo exif = storageService.readExif(user.getStorageFolder(), stored.relativePath());
                 Integer width = stored.width();
                 Integer height = stored.height();
                 String previewPath = null;
+                if (exif != null && exif.swapsDimensions() && !RawImageSupport.isRawFileName(file.getOriginalFilename())) {
+                    // Ảnh chụp dọc bằng điện thoại: file lưu 2560x1184 + Orientation=6 -> hiển thị 1184x2560
+                    Integer tmp = width;
+                    width = height;
+                    height = tmp;
+                }
                 if (RawImageSupport.isRawFileName(file.getOriginalFilename())) {
                     // Giữ file RAW gốc để tải về + tạo JPEG xem trước để hiển thị trên web.
                     RawPreview preview = storageService.createRawPreview(user.getStorageFolder(), stored.relativePath());
@@ -102,13 +110,13 @@ public class PhotoServiceImpl implements PhotoService {
                         height = preview.height();
                     }
                 }
-                // EXIF thật (máy ảnh, ống kính, khẩu độ, ISO, ngày chụp...) — lỗi đọc không ảnh hưởng upload
-                ExifInfo exif = storageService.readExif(user.getStorageFolder(), stored.relativePath());
                 Photo photo = Photo.builder()
                         .event(event)
                         .cameraModel(exif != null ? exif.cameraModel() : null)
                         .lensModel(exif != null ? exif.lensModel() : null)
                         .focalLength(exif != null ? exif.focalLength() : null)
+                        .focalLength35mm(exif != null ? exif.focalLength35mm() : null)
+                        .exifReadAt(LocalDateTime.now())
                         .aperture(exif != null ? exif.aperture() : null)
                         .shutterSpeed(exif != null ? exif.shutterSpeed() : null)
                         .iso(exif != null ? exif.iso() : null)

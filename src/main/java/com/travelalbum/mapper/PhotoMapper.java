@@ -42,6 +42,7 @@ public class PhotoMapper {
             .cameraModel(photo.getCameraModel())
             .lensModel(photo.getLensModel())
             .focalLength(photo.getFocalLength())
+            .focalLength35mm(photo.getFocalLength35mm())
             .aperture(photo.getAperture())
             .shutterSpeed(photo.getShutterSpeed())
             .iso(photo.getIso())

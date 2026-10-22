@@ -78,6 +78,9 @@ public class Photo {
     @Column(name = "focal_length", length = 20)
     private String focalLength;
 
+    @Column(name = "focal_length_35mm", length = 20)
+    private String focalLength35mm;
+
     @Column(length = 20)
     private String aperture;
 
@@ -88,6 +91,10 @@ public class Photo {
 
     @Column(name = "taken_at")
     private LocalDateTime takenAt;
+
+    /** Đã đọc EXIF lúc nào (null = chưa đọc, sẽ được đọc bù khi backend khởi động). */
+    @Column(name = "exif_read_at")
+    private LocalDateTime exifReadAt;
 
     @Column(name = "uploaded_by")
     private Long uploadedBy;
