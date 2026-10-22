@@ -34,8 +34,8 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 10MB
-      max-request-size: 150MB   # đủ cho tối đa 100 file / lần upload
+      max-file-size: 50MB
+      max-request-size: 500MB   # tối đa 100 file x 50MB; thực tế web upload từng file (Cloudflare giới hạn ~100MB/request)
 
 server:
   forward-headers-strategy: native   # hiểu đúng X-Forwarded-For từ Nginx (SEC-06/SEC-08)

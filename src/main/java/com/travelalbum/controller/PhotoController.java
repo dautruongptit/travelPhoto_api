@@ -19,6 +19,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -32,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -41,6 +44,8 @@ import java.util.zip.ZipOutputStream;
 @RestController
 @RequiredArgsConstructor
 public class PhotoController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PhotoController.class);
 
     private final PhotoService photoService;
     private final PhotoRepository photoRepository;
@@ -97,8 +102,49 @@ public class PhotoController {
         Photo photo = photoService.getPhotoForDownload(id, token, requesterId, isAdmin);
         String parentFolder = resolveStorageFolder(photo);
         Resource resource = storageService.load(parentFolder, photo.getPath());
+        // File có bản ghi trong DB nhưng không còn trên đĩa (vd ảnh upload từ môi trường khác
+        // dùng chung DB, hoặc sai STORAGE_HOST_PATH) -> trả 404 rõ ràng thay vì 500.
+        if (!resource.exists()) {
+            log.warn("Photo file missing on disk: photoId={}, path={}", id, photo.getPath());
+            throw new NotFoundException("Photo file not found in storage");
+        }
         response.setContentType(photo.getMimeType());
-        response.setHeader("Content-Disposition", "attachment; filename=\"" + photo.getOriginalName() + "\"");
+        // filename* (RFC 6266) để giữ đúng tên gốc có dấu tiếng Việt / ký tự đặc biệt và
+        // chống chèn header qua tên file.
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION,
+                ContentDisposition.attachment().filename(photo.getOriginalName(), StandardCharsets.UTF_8).build().toString());
+        try (InputStream in = resource.getInputStream(); OutputStream out = response.getOutputStream()) {
+            in.transferTo(out);
+        }
+    }
+
+    /**
+     * Ảnh để HIỂN THỊ trên web: RAW -> JPEG xem trước đã tạo lúc upload; ảnh thường -> chính
+     * file gốc. Cùng quy tắc quyền với download (owner/member/share token).
+     */
+    @GetMapping("/api/photos/{id}/preview")
+    public void preview(@PathVariable Long id,
+                        @RequestParam(required = false) String token,
+                        @AuthenticationPrincipal UserPrincipal principal,
+                        HttpServletResponse response) throws IOException {
+        Long requesterId = principal != null ? principal.getId() : null;
+        boolean isAdmin = principal != null && principal.isAdmin();
+
+        Photo photo = photoService.getPhotoForDownload(id, token, requesterId, isAdmin);
+        String parentFolder = resolveStorageFolder(photo);
+
+        boolean raw = com.travelalbum.storage.RawImageSupport.isRawFileName(photo.getOriginalName());
+        String relativePath = raw ? photo.getPreviewPath() : photo.getPath();
+        if (relativePath == null) {
+            throw new NotFoundException("No preview available for this photo");
+        }
+        Resource resource = storageService.load(parentFolder, relativePath);
+        if (!resource.exists()) {
+            log.warn("Photo preview missing on disk: photoId={}, path={}", id, relativePath);
+            throw new NotFoundException("Photo file not found in storage");
+        }
+        response.setContentType(raw ? MediaType.IMAGE_JPEG_VALUE : photo.getMimeType());
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "private, max-age=3600");
         try (InputStream in = resource.getInputStream(); OutputStream out = response.getOutputStream()) {
             in.transferTo(out);
         }
@@ -132,9 +178,13 @@ public class PhotoController {
                 }
                 seenNames.add(entryName);
 
-                zos.putNextEntry(new ZipEntry(entryName));
                 String parentFolder = resolveStorageFolder(photo);
                 Resource resource = storageService.load(parentFolder, photo.getPath());
+                if (!resource.exists()) {
+                    log.warn("Photo file missing on disk, skip in zip: photoId={}, path={}", photo.getId(), photo.getPath());
+                    continue;
+                }
+                zos.putNextEntry(new ZipEntry(entryName));
                 try (InputStream is = resource.getInputStream()) {
                     is.transferTo(zos);
                 }

@@ -14,6 +14,12 @@ public interface StorageService {
 
     Resource load(String parentFolder, String relativePath);
 
+    /**
+     * Tạo bản xem trước JPEG cho file RAW đã lưu tại {@code relativePath} (lấy JPEG nhúng trong
+     * RAW). Lưu ở thư mục ".previews" cạnh file gốc. Trả về null nếu RAW không có JPEG nhúng.
+     */
+    RawPreview createRawPreview(String parentFolder, String relativePath);
+
     void delete(String parentFolder, String relativePath);
 
     void deleteEventFolder(String parentFolder, String eventFolder);

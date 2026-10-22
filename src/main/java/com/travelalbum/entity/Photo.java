@@ -64,6 +64,10 @@ public class Photo {
     @Column(nullable = false, length = 64)
     private String checksum;
 
+    /** Path tương đối của bản xem trước JPEG — chỉ có với ảnh RAW (xem docs/STORAGE_NAMING.md). */
+    @Column(name = "preview_path", length = 500)
+    private String previewPath;
+
     @Column(name = "uploaded_by")
     private Long uploadedBy;
 

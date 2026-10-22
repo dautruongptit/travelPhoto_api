@@ -13,6 +13,10 @@ public class PhotoUrlBuilder {
         return apiBaseUrl + "/api/photos/download/" + photoId;
     }
 
+    public String buildPreviewUrl(Long photoId) {
+        return apiBaseUrl + "/api/photos/" + photoId + "/preview";
+    }
+
     public String buildThumbnailUrl(Long photoId) {
         return apiBaseUrl + "/api/photos/" + photoId + "/thumbnail";
     }

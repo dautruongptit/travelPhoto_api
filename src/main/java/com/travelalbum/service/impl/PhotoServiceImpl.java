@@ -19,6 +19,8 @@ import com.travelalbum.repository.ShareLinkRepository;
 import com.travelalbum.repository.UserRepository;
 import com.travelalbum.service.AuditLogService;
 import com.travelalbum.service.PhotoService;
+import com.travelalbum.storage.RawImageSupport;
+import com.travelalbum.storage.RawPreview;
 import com.travelalbum.storage.StorageService;
 import com.travelalbum.storage.StoredFile;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +42,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class PhotoServiceImpl implements PhotoService {
 
-    private static final long MAX_SIZE = 10L * 1024 * 1024;
+    private static final long MAX_SIZE = 50L * 1024 * 1024;
     private static final int MAX_FILES = 100;
     private static final int MAX_BATCH_DELETE = 100;
     private static final Set<String> ALLOWED_MIME = Set.of("image/jpeg", "image/png", "image/webp");
@@ -87,15 +89,28 @@ public class PhotoServiceImpl implements PhotoService {
                     continue;
                 }
                 StoredFile stored = storageService.store(user.getStorageFolder(), event.getStorageFolder(), file);
+                Integer width = stored.width();
+                Integer height = stored.height();
+                String previewPath = null;
+                if (RawImageSupport.isRawFileName(file.getOriginalFilename())) {
+                    // Giữ file RAW gốc để tải về + tạo JPEG xem trước để hiển thị trên web.
+                    RawPreview preview = storageService.createRawPreview(user.getStorageFolder(), stored.relativePath());
+                    if (preview != null) {
+                        previewPath = preview.relativePath();
+                        width = preview.width();
+                        height = preview.height();
+                    }
+                }
                 Photo photo = Photo.builder()
                         .event(event)
                         .fileName(stored.fileName())
                         .originalName(file.getOriginalFilename())
                         .path(stored.relativePath())
+                        .previewPath(previewPath)
                         .size(file.getSize())
-                        .mimeType(file.getContentType())
-                        .width(stored.width())
-                        .height(stored.height())
+                        .mimeType(resolveMimeType(file))
+                        .width(width)
+                        .height(height)
                         .checksum(stored.checksum())
                         .uploadedBy(userId)
                         .build();
@@ -152,6 +167,9 @@ public class PhotoServiceImpl implements PhotoService {
         User fileOwner = userRepository.findById(fileOwnerUserId)
                 .orElseThrow(() -> new NotFoundException("Owner not found"));
         storageService.delete(fileOwner.getStorageFolder(), photo.getPath());
+        if (photo.getPreviewPath() != null) {
+            storageService.delete(fileOwner.getStorageFolder(), photo.getPreviewPath());
+        }
 
         Event event = photo.getEvent();
         event.setPhotoCount(Math.max(0, event.getPhotoCount() - 1));
@@ -256,8 +274,33 @@ public class PhotoServiceImpl implements PhotoService {
         if (file.getSize() > MAX_SIZE) {
             throw new BusinessException("File too large", "FILE_TOO_LARGE");
         }
+        if (RawImageSupport.isRawFileName(file.getOriginalFilename())) {
+            // RAW: trình duyệt thường gửi application/octet-stream nên không tin Content-Type,
+            // kiểm tra chữ ký (magic bytes) để file đổi đuôi .cr2 nhưng không phải RAW bị từ chối.
+            if (!RawImageSupport.hasRawSignature(readHeader(file))) {
+                throw new BusinessException("Invalid RAW file", "INVALID_TYPE");
+            }
+            return;
+        }
         if (!ALLOWED_MIME.contains(file.getContentType())) {
             throw new BusinessException("Invalid file type", "INVALID_TYPE");
         }
+    }
+
+    private byte[] readHeader(MultipartFile file) {
+        try (java.io.InputStream in = file.getInputStream()) {
+            return in.readNBytes(RawImageSupport.HEADER_BYTES);
+        } catch (java.io.IOException ex) {
+            throw new BusinessException("Cannot read file", "UPLOAD_FAILED");
+        }
+    }
+
+    /** Cột mime_type NOT NULL, dài 50: RAW thường không có Content-Type hợp lệ. */
+    private String resolveMimeType(MultipartFile file) {
+        String type = file.getContentType();
+        if (type == null || type.isBlank() || type.length() > 50) {
+            return "application/octet-stream";
+        }
+        return type;
     }
 }

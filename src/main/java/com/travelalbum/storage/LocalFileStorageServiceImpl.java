@@ -80,7 +80,8 @@ public class LocalFileStorageServiceImpl implements StorageService {
         Path dir = eventDir(parentFolder, eventFolder);
         try {
             Files.createDirectories(dir);
-            String storedName = UUID.randomUUID() + "_" + sanitizeFileName(file.getOriginalFilename());
+            // Giữ nguyên tên gốc (chỉ loại ký tự cấm NTFS); trùng tên trong thư mục -> "(1)", "(2)"...
+            String storedName = StorageFileNames.uniqueIn(dir, StorageFileNames.sanitize(file.getOriginalFilename()));
             Path target = dir.resolve(storedName);
 
             try (InputStream in = file.getInputStream()) {
@@ -94,10 +95,15 @@ public class LocalFileStorageServiceImpl implements StorageService {
 
             Integer width = null;
             Integer height = null;
-            BufferedImage img = ImageIO.read(target.toFile());
-            if (img != null) {
-                width = img.getWidth();
-                height = img.getHeight();
+            // RAW: ImageIO không đọc được, kích thước lấy từ bản xem trước (createRawPreview).
+            // Ảnh thường: chỉ đọc header để lấy kích thước, không giải mã cả ảnh vào RAM
+            // (ảnh tới 50MB có thể lên hàng trăm megapixel).
+            if (!RawImageSupport.isRawFileName(storedName)) {
+                int[] dim = readImageSize(target);
+                if (dim != null) {
+                    width = dim[0];
+                    height = dim[1];
+                }
             }
 
             String relativePath = root().relativize(target).toString();
@@ -192,7 +198,43 @@ public class LocalFileStorageServiceImpl implements StorageService {
         }
     }
 
-    private String sanitizeFileName(String name) {
-        return name == null ? "file" : name.replaceAll("[^a-zA-Z0-9._-]", "_");
+    @Override
+    public RawPreview createRawPreview(String parentFolder, String relativePath) {
+        Path base = parentDir(parentFolder);
+        Path source = root().resolve(relativePath).normalize();
+        if (!source.startsWith(base)) {
+            throw new SecurityException("Invalid storage path");
+        }
+        Path target = source.getParent().resolve(".previews").resolve(source.getFileName() + ".jpg");
+        try {
+            return RawImageSupport.writePreview(source, target)
+                    .map(dim -> new RawPreview(root().relativize(target).toString(), dim[0], dim[1]))
+                    .orElse(null);
+        } catch (IOException | RuntimeException ex) {
+            // Preview là phần phụ: lỗi tạo preview không được làm hỏng việc upload file gốc.
+            return null;
+        }
+    }
+
+    /** Đọc width/height từ header ảnh mà không giải mã toàn bộ pixel. */
+    private int[] readImageSize(Path file) {
+        try (javax.imageio.stream.ImageInputStream in = ImageIO.createImageInputStream(file.toFile())) {
+            if (in == null) {
+                return null;
+            }
+            java.util.Iterator<javax.imageio.ImageReader> readers = ImageIO.getImageReaders(in);
+            if (!readers.hasNext()) {
+                return null;
+            }
+            javax.imageio.ImageReader reader = readers.next();
+            try {
+                reader.setInput(in, true, true);
+                return new int[]{reader.getWidth(0), reader.getHeight(0)};
+            } finally {
+                reader.dispose();
+            }
+        } catch (IOException | RuntimeException ex) {
+            return null;
+        }
     }
 }

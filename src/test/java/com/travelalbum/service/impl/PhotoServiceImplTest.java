@@ -13,6 +13,7 @@ import com.travelalbum.repository.EventMemberRepository;
 import com.travelalbum.repository.PhotoRepository;
 import com.travelalbum.repository.UserRepository;
 import com.travelalbum.service.AuditLogService;
+import com.travelalbum.storage.RawPreview;
 import com.travelalbum.storage.StorageService;
 import com.travelalbum.storage.StoredFile;
 import com.travelalbum.dto.response.BatchDeleteResponse;
@@ -151,6 +152,59 @@ class PhotoServiceImplTest {
         assertThat(event.getTotalSize()).isEqualTo(content.length);
         assertThat(owner.getStorageUsed()).isEqualTo(content.length);
         verify(auditLogService).log(eq(1L), eq("UPLOAD"), eq("EVENT"), eq(10L), any(), any(), eq("SUCCESS"));
+    }
+
+    @Test
+    void uploadMultiple_acceptsRawWithTiffSignature_andStoresPreview() {
+        Event event = ownedEvent();
+        User owner = owner(0L, 100_000_000L);
+        when(eventRepository.findById(10L)).thenReturn(Optional.of(event));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        when(storageService.store(eq("dautruong_000001"), eq("ev-folder"), any()))
+                .thenReturn(new StoredFile("DSC_0001.NEF", "ev-folder/DSC_0001.NEF", "chk", null, null));
+        when(storageService.createRawPreview("dautruong_000001", "ev-folder/DSC_0001.NEF"))
+                .thenReturn(new RawPreview("ev-folder/.previews/DSC_0001.NEF.jpg", 4000, 3000));
+        when(photoRepository.save(any(Photo.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(photoMapper.toResponse(any(Photo.class))).thenReturn(PhotoResponse.builder().id(1L).build());
+
+        byte[] rawBytes = new byte[64];
+        rawBytes[0] = 'I'; rawBytes[1] = 'I'; rawBytes[2] = 0x2A; // chữ ký TIFF
+        MultipartFile[] files = { new MockMultipartFile("files", "DSC_0001.NEF", "application/octet-stream", rawBytes) };
+
+        UploadResultResponse result = photoService.uploadMultiple(10L, files, 1L);
+
+        assertThat(result.getUploaded()).isEqualTo(1);
+        org.mockito.ArgumentCaptor<Photo> captor = org.mockito.ArgumentCaptor.forClass(Photo.class);
+        verify(photoRepository).save(captor.capture());
+        assertThat(captor.getValue().getPreviewPath()).isEqualTo("ev-folder/.previews/DSC_0001.NEF.jpg");
+        assertThat(captor.getValue().getWidth()).isEqualTo(4000);
+        assertThat(captor.getValue().getMimeType()).isEqualTo("application/octet-stream");
+    }
+
+    @Test
+    void uploadMultiple_rejectsRawExtensionWithoutRawSignature() {
+        when(eventRepository.findById(10L)).thenReturn(Optional.of(ownedEvent()));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner(0L, 100_000_000L)));
+        MultipartFile[] files = { new MockMultipartFile("files", "fake.CR2", "application/octet-stream", "not a raw file at all".getBytes()) };
+
+        UploadResultResponse result = photoService.uploadMultiple(10L, files, 1L);
+
+        assertThat(result.getUploaded()).isEqualTo(0);
+        assertThat(result.getFailures().get(0).getErrorCode()).isEqualTo("INVALID_TYPE");
+        verify(storageService, never()).store(anyString(), anyString(), any());
+    }
+
+    @Test
+    void uploadMultiple_acceptsFilesUpTo50MB() {
+        when(eventRepository.findById(10L)).thenReturn(Optional.of(ownedEvent()));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner(0L, 1_000_000_000L)));
+        when(storageService.store(anyString(), anyString(), any()))
+                .thenReturn(new StoredFile("big.jpg", "ev-folder/big.jpg", "c", 1, 1));
+        when(photoRepository.save(any(Photo.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(photoMapper.toResponse(any(Photo.class))).thenReturn(PhotoResponse.builder().id(1L).build());
+        MultipartFile[] files = { new MockMultipartFile("files", "big.jpg", "image/jpeg", new byte[40 * 1024 * 1024]) };
+
+        assertThat(photoService.uploadMultiple(10L, files, 1L).getUploaded()).isEqualTo(1);
     }
 
     @Test
