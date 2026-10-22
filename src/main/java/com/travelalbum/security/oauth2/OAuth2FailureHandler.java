@@ -27,6 +27,6 @@ public class OAuth2FailureHandler implements AuthenticationFailureHandler {
         String ip = ClientIpUtils.resolveIp(request);
         String userAgent = request.getHeader("User-Agent");
         auditLogService.log(null, "LOGIN_FAILED", "USER", null, ip, userAgent, "FAILED");
-        response.sendRedirect(frontendUrl + "/login?error=true");
+        response.sendRedirect(frontendUrl + "/oauth2-callback.html?error=login_failed");
     }
 }

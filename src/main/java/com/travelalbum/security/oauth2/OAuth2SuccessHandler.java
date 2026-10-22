@@ -80,6 +80,9 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
                 .maxAge(Duration.ofDays(7)).build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-        response.sendRedirect(frontendUrl + "/oauth2/callback?token=" + accessToken);
+        // Trỏ thẳng tới trang tĩnh oauth2-callback.html (postMessage về cửa sổ chính rồi tự
+        // đóng popup). Trước đây là /oauth2/callback -> rơi vào SPA nên popup tự load nguyên
+        // app và đăng nhập ngay trong popup thay vì trả token về cửa sổ chính.
+        response.sendRedirect(frontendUrl + "/oauth2-callback.html?token=" + accessToken);
     }
 }
