@@ -172,13 +172,13 @@ public class EventServiceImpl implements EventService {
     @Override
     public Page<EventResponse> list(Pageable pageable, Long requesterId, boolean isAdmin) {
         // ADMIN xem toàn bộ (dùng cho AdminController/dashboard quản trị); USER chỉ thấy
-        // event của chính mình — trước đây findAll() không lọc, lộ event của user khác.
-        return toResponsePage(isAdmin ? eventRepository.findAll(pageable) : eventRepository.findByOwnerId(requesterId, pageable));
+        // event của chính mình + event đã tham gia (member) — trước đây findAll() không lọc, lộ event của user khác.
+        return toResponsePage(isAdmin ? eventRepository.findAll(pageable) : eventRepository.findAccessibleByUser(requesterId, pageable));
     }
 
     @Override
     public Page<EventResponse> search(String keyword, Pageable pageable, Long requesterId, boolean isAdmin) {
-        return toResponsePage(isAdmin ? eventRepository.search(keyword, pageable) : eventRepository.searchByOwner(keyword, requesterId, pageable));
+        return toResponsePage(isAdmin ? eventRepository.search(keyword, pageable) : eventRepository.searchAccessibleByUser(keyword, requesterId, pageable));
     }
 
     // Map cả trang event 1 lần (EventMapper.toResponseList batch owner lookup) thay vì
