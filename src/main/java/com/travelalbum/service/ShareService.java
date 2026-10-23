@@ -1,6 +1,5 @@
 package com.travelalbum.service;
 
-import com.travelalbum.dto.response.EventResponse;
 import com.travelalbum.dto.response.PhotoResponse;
 import com.travelalbum.dto.response.ShareInfoResponse;
 import com.travelalbum.dto.response.ShareLinkResponse;
@@ -12,7 +11,6 @@ import java.util.List;
 
 public interface ShareService {
     ShareLinkResponse create(Long eventId, Long userId, EventMemberRole role);
-    EventResponse getEventByToken(String token);
     ShareInfoResponse getShareInfo(String token, Long requesterId);
     Page<PhotoResponse> listPhotosByToken(String token, Long requesterId, Pageable pageable);
     void revoke(String token, Long requesterId, boolean isAdmin);

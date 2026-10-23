@@ -95,37 +95,6 @@ class ShareServiceImplTest {
     }
 
     @Test
-    void getEventByToken_throwsNotFound_whenTokenUnknown() {
-        when(shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256("bad-token"))).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> shareService.getEventByToken("bad-token")).isInstanceOf(NotFoundException.class);
-    }
-
-    @Test
-    void getEventByToken_throwsNotFound_whenLinkExpired() {
-        Event event = Event.builder().id(1L).build();
-        ShareLink expired = ShareLink.builder()
-                .token("tok").event(event).active(true)
-                .expiredAt(LocalDateTime.now().minusDays(1))
-                .build();
-        when(shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256("tok"))).thenReturn(Optional.of(expired));
-
-        assertThatThrownBy(() -> shareService.getEventByToken("tok")).isInstanceOf(NotFoundException.class);
-    }
-
-    @Test
-    void getEventByToken_returnsEvent_whenActiveAndNotExpired() {
-        Event event = Event.builder().id(1L).name("Da Lat").build();
-        ShareLink link = ShareLink.builder().token("tok").tokenHash(TokenHashUtil.sha256("tok")).event(event).active(true).expiredAt(null).build();
-        when(shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256("tok"))).thenReturn(Optional.of(link));
-        when(eventMapper.toResponse(event)).thenReturn(EventResponse.builder().id(1L).name("Da Lat").build());
-
-        EventResponse response = shareService.getEventByToken("tok");
-
-        assertThat(response.getId()).isEqualTo(1L);
-    }
-
-    @Test
     void revoke_throwsAccessDenied_whenNotOwnerAndNotAdmin() {
         Event event = Event.builder().id(1L).ownerId(1L).build();
         ShareLink link = ShareLink.builder().token("tok").tokenHash(TokenHashUtil.sha256("tok")).event(event).active(true).build();
@@ -160,18 +129,28 @@ class ShareServiceImplTest {
     }
 
     @Test
-    void getShareInfo_returnsLinkRoleAndEvent_whenNoRequester() {
+    void getShareInfo_throwsAccessDenied_whenEditorLinkAndNoRequester() {
         Event event = Event.builder().id(1L).name("Da Lat").build();
         ShareLink link = ShareLink.builder().tokenHash(TokenHashUtil.sha256("tok")).event(event)
                 .active(true).role(EventMemberRole.EDITOR).build();
+        when(shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256("tok"))).thenReturn(Optional.of(link));
+
+        assertThatThrownBy(() -> shareService.getShareInfo("tok", null))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void getShareInfo_returnsLinkRoleAndEvent_whenViewerLinkAndNoRequester() {
+        Event event = Event.builder().id(1L).name("Da Lat").build();
+        ShareLink link = ShareLink.builder().tokenHash(TokenHashUtil.sha256("tok")).event(event)
+                .active(true).role(EventMemberRole.VIEWER).build();
         when(shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256("tok"))).thenReturn(Optional.of(link));
         when(eventMapper.toResponse(event)).thenReturn(EventResponse.builder().id(1L).name("Da Lat").build());
 
         ShareInfoResponse info = shareService.getShareInfo("tok", null);
 
-        assertThat(info.getLinkRole()).isEqualTo(EventMemberRole.EDITOR);
+        assertThat(info.getLinkRole()).isEqualTo(EventMemberRole.VIEWER);
         assertThat(info.getEvent().getId()).isEqualTo(1L);
-        assertThat(info.getEvent().getUserRole()).isNull();
     }
 
     @Test

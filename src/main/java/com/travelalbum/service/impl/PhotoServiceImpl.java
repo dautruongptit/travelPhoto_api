@@ -277,6 +277,7 @@ public class PhotoServiceImpl implements PhotoService {
             String tokenHash = TokenHashUtil.sha256(token);
             return shareLinkRepository.findByTokenHashAndActiveTrue(tokenHash)
                     .filter(l -> l.getExpiredAt() == null || l.getExpiredAt().isAfter(LocalDateTime.now()))
+                    .filter(l -> l.getRole() != EventMemberRole.EDITOR || requesterId != null)
                     .map(l -> l.getEvent().getId().equals(eventId))
                     .orElse(false);
         }

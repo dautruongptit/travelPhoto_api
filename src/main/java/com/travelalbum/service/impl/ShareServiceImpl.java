@@ -101,17 +101,6 @@ public class ShareServiceImpl implements ShareService {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public EventResponse getEventByToken(String token) {
-        // @Transactional bắt buộc ở đây: ShareLink.event là quan hệ LAZY, eventMapper
-        // đọc nhiều field của Event (name, description, startDate...) chứ không chỉ id
-        // — nếu không có transaction mở sẵn, proxy sẽ ném LazyInitializationException
-        // (open-in-view: false, mỗi repository call tự đóng session ngay khi trả về).
-        ShareLink link = findActiveLink(token);
-        return eventMapper.toResponse(link.getEvent());
-    }
-
-    @Override
     public Page<PhotoResponse> listPhotosByToken(String token, Long requesterId, Pageable pageable) {
         ShareLink link = findActiveLink(token);
         if (link.getRole() == EventMemberRole.EDITOR && requesterId == null) {
