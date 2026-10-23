@@ -3,6 +3,7 @@ package com.travelalbum.controller;
 import com.travelalbum.common.ApiResponse;
 import com.travelalbum.dto.response.EventResponse;
 import com.travelalbum.dto.response.PhotoResponse;
+import com.travelalbum.dto.response.ShareInfoResponse;
 import com.travelalbum.dto.response.ShareLinkResponse;
 import com.travelalbum.enums.EventMemberRole;
 import com.travelalbum.security.userdetails.UserPrincipal;
@@ -52,8 +53,10 @@ public class ShareController {
     }
 
     @GetMapping("/api/share/{token}")
-    public ApiResponse<EventResponse> viewByToken(@PathVariable String token) {
-        return ApiResponse.success("OK", shareService.getEventByToken(token));
+    public ApiResponse<ShareInfoResponse> viewByToken(@PathVariable String token,
+                                                       @AuthenticationPrincipal UserPrincipal principal) {
+        Long requesterId = principal != null ? principal.getId() : null;
+        return ApiResponse.success("OK", shareService.getShareInfo(token, requesterId));
     }
 
     @GetMapping("/api/share/{token}/photos")

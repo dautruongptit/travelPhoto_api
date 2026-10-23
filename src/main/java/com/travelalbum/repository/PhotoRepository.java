@@ -35,7 +35,8 @@ public interface PhotoRepository extends JpaRepository<Photo, Long> {
     @Query("SELECT p FROM Photo p WHERE p.event.id = :eventId AND p.deletedAt IS NULL")
     Page<Photo> findByEventId(@Param("eventId") Long eventId, Pageable pageable);
 
-    List<Photo> findByIdIn(List<Long> ids);
+    @Query("SELECT p FROM Photo p WHERE p.id IN :ids AND p.deletedAt IS NULL")
+    List<Photo> findByIdIn(@Param("ids") List<Long> ids);
 
     @Query("SELECT COUNT(p) FROM Photo p WHERE p.event.id = :eventId AND p.deletedAt IS NULL")
     long countByEvent(@Param("eventId") Long eventId);

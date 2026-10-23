@@ -2,6 +2,7 @@ package com.travelalbum.service.impl;
 
 import com.travelalbum.dto.response.EventResponse;
 import com.travelalbum.dto.response.PhotoResponse;
+import com.travelalbum.dto.response.ShareInfoResponse;
 import com.travelalbum.dto.response.ShareLinkResponse;
 import com.travelalbum.entity.Event;
 import com.travelalbum.entity.EventMember;
@@ -76,6 +77,19 @@ public class ShareServiceImpl implements ShareService {
             .role(linkRole)
             .expiredAt(expiredAt)
             .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ShareInfoResponse getShareInfo(String token, Long requesterId) {
+        ShareLink link = findActiveLink(token);
+        EventResponse event = requesterId != null
+                ? eventMapper.toResponse(link.getEvent(), requesterId)
+                : eventMapper.toResponse(link.getEvent());
+        return ShareInfoResponse.builder()
+                .event(event)
+                .linkRole(link.getRole())
+                .build();
     }
 
     @Override
