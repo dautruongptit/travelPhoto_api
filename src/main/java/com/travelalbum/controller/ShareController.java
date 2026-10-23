@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 public class ShareController {
@@ -31,6 +33,22 @@ public class ShareController {
                                                   @RequestParam(value = "role", required = false) EventMemberRole role,
                                                   @AuthenticationPrincipal UserPrincipal principal) {
         return ApiResponse.success("Share link created", shareService.create(id, principal.getId(), role));
+    }
+
+    @GetMapping("/api/events/{id}/shares")
+    @PreAuthorize("hasRole('ADMIN') or @eventSecurity.isOwner(#id, authentication)")
+    public ApiResponse<List<ShareLinkResponse>> listByEvent(@PathVariable Long id,
+                                                             @AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResponse.success("OK", shareService.listByEvent(id, principal.getId()));
+    }
+
+    @DeleteMapping("/api/events/{id}/shares/{linkId}")
+    @PreAuthorize("hasRole('ADMIN') or @eventSecurity.isOwner(#id, authentication)")
+    public ApiResponse<Void> revokeById(@PathVariable Long id,
+                                         @PathVariable Long linkId,
+                                         @AuthenticationPrincipal UserPrincipal principal) {
+        shareService.revokeById(id, linkId, principal.getId());
+        return ApiResponse.success("Share link revoked", null);
     }
 
     @GetMapping("/api/share/{token}")

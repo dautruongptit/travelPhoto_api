@@ -38,8 +38,11 @@ public class ShareLink {
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
-    @Column(nullable = false, unique = true, length = 64)
+    @Column(length = 64)
     private String token;
+
+    @Column(name = "token_hash", nullable = false, unique = true, length = 64)
+    private String tokenHash;
 
     @Column(name = "created_by")
     private Long createdBy;
@@ -55,6 +58,13 @@ public class ShareLink {
     @Column(nullable = false, length = 20)
     @Builder.Default
     private EventMemberRole role = EventMemberRole.VIEWER;
+
+    @Column(name = "password_hash", length = 60)
+    private String passwordHash;
+
+    @Column(name = "allow_download", nullable = false)
+    @Builder.Default
+    private boolean allowDownload = true;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

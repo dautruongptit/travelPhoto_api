@@ -16,6 +16,7 @@ import com.travelalbum.repository.PhotoRepository;
 import com.travelalbum.repository.ShareLinkRepository;
 import com.travelalbum.service.AuditLogService;
 import com.travelalbum.service.ShareService;
+import com.travelalbum.util.TokenHashUtil;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -53,10 +55,12 @@ public class ShareServiceImpl implements ShareService {
         }
         EventMemberRole linkRole = role != null ? role : EventMemberRole.VIEWER;
         String token = generateUniqueToken();
+        String tokenHash = TokenHashUtil.sha256(token);
         LocalDateTime expiredAt = LocalDateTime.now().plusDays(DEFAULT_LINK_TTL_DAYS);
         ShareLink link = ShareLink.builder()
             .event(event)
-            .token(token)
+            .token(null)
+            .tokenHash(tokenHash)
             .createdBy(userId)
             .active(true)
             .role(linkRole)
@@ -81,24 +85,21 @@ public class ShareServiceImpl implements ShareService {
         // đọc nhiều field của Event (name, description, startDate...) chứ không chỉ id
         // — nếu không có transaction mở sẵn, proxy sẽ ném LazyInitializationException
         // (open-in-view: false, mỗi repository call tự đóng session ngay khi trả về).
-        ShareLink link = shareLinkRepository.findByTokenAndActiveTrue(token)
-            .filter(l -> l.getExpiredAt() == null || l.getExpiredAt().isAfter(LocalDateTime.now()))
-            .orElseThrow(() -> new NotFoundException("Share link not found or expired"));
+        ShareLink link = findActiveLink(token);
         return eventMapper.toResponse(link.getEvent());
     }
 
     @Override
     public Page<PhotoResponse> listPhotosByToken(String token, Pageable pageable) {
-        ShareLink link = shareLinkRepository.findByTokenAndActiveTrue(token)
-            .filter(l -> l.getExpiredAt() == null || l.getExpiredAt().isAfter(LocalDateTime.now()))
-            .orElseThrow(() -> new NotFoundException("Share link not found or expired"));
+        ShareLink link = findActiveLink(token);
         return photoRepository.findByEventId(link.getEvent().getId(), pageable).map(photoMapper::toResponse);
     }
 
     @Override
     @Transactional
     public void revoke(String token, Long requesterId, boolean isAdmin) {
-        ShareLink link = shareLinkRepository.findByTokenAndActiveTrue(token)
+        String tokenHash = TokenHashUtil.sha256(token);
+        ShareLink link = shareLinkRepository.findByTokenHashAndActiveTrue(tokenHash)
             .orElseThrow(() -> new NotFoundException("Share link not found"));
         if (!isAdmin && !link.getEvent().getOwnerId().equals(requesterId)) {
             throw new AccessDeniedException("Not the owner of this event");
@@ -111,9 +112,7 @@ public class ShareServiceImpl implements ShareService {
     @Override
     @Transactional
     public Long joinByToken(String token, Long userId) {
-        ShareLink link = shareLinkRepository.findByTokenAndActiveTrue(token)
-            .filter(l -> l.getExpiredAt() == null || l.getExpiredAt().isAfter(LocalDateTime.now()))
-            .orElseThrow(() -> new NotFoundException("Share link not found or expired"));
+        ShareLink link = findActiveLink(token);
         Long eventId = link.getEvent().getId();
         // Owner tự bấm link share của chính mình thì không tạo membership (họ đã có full quyền)
         // — cùng tinh thần với guard CANNOT_INVITE_SELF trong EventInviteServiceImpl.invite.
@@ -134,17 +133,60 @@ public class ShareServiceImpl implements ShareService {
         return eventId;
     }
 
-    // Token là bí mật truy cập: dùng SecureRandom (RandomStringUtils mặc định không an toàn
-    // về mặt mật mã, đoán được từ vài token liền nhau) và 32 ký tự (~190 bit).
+    @Override
+    @Transactional(readOnly = true)
+    public List<ShareLinkResponse> listByEvent(Long eventId, Long requesterId) {
+        Event event = eventRepository.findById(eventId)
+            .orElseThrow(() -> new NotFoundException("Event not found"));
+        if (!event.getOwnerId().equals(requesterId)) {
+            throw new AccessDeniedException("Not the owner of this event");
+        }
+        return shareLinkRepository.findByEventIdAndActiveTrue(eventId).stream()
+            .map(link -> ShareLinkResponse.builder()
+                .id(link.getId())
+                .shareUrl(frontendUrl + "/share/[hidden]")
+                .active(link.isActive())
+                .role(link.getRole())
+                .expiredAt(link.getExpiredAt())
+                .createdAt(link.getCreatedAt())
+                .build())
+            .toList();
+    }
+
+    private ShareLink findActiveLink(String token) {
+        String tokenHash = TokenHashUtil.sha256(token);
+        return shareLinkRepository.findByTokenHashAndActiveTrue(tokenHash)
+            .filter(l -> l.getExpiredAt() == null || l.getExpiredAt().isAfter(LocalDateTime.now()))
+            .orElseThrow(() -> new NotFoundException("Share link not found or expired"));
+    }
+
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final int TOKEN_LENGTH = 32;
     private static final long DEFAULT_LINK_TTL_DAYS = 30;
+
+    @Override
+    @Transactional
+    public void revokeById(Long eventId, Long linkId, Long requesterId) {
+        Event event = eventRepository.findById(eventId)
+            .orElseThrow(() -> new NotFoundException("Event not found"));
+        if (!event.getOwnerId().equals(requesterId)) {
+            throw new AccessDeniedException("Not the owner of this event");
+        }
+        ShareLink link = shareLinkRepository.findById(linkId)
+            .orElseThrow(() -> new NotFoundException("Share link not found"));
+        if (!link.getEvent().getId().equals(eventId)) {
+            throw new AccessDeniedException("Link does not belong to this event");
+        }
+        link.setActive(false);
+        shareLinkRepository.save(link);
+        auditLogService.log(requesterId, "REVOKE_SHARE_LINK", "EVENT", eventId, null, null, "SUCCESS");
+    }
 
     private String generateUniqueToken() {
         String token;
         do {
             token = RandomStringUtils.random(TOKEN_LENGTH, 0, 0, true, true, null, SECURE_RANDOM);
-        } while (shareLinkRepository.findByTokenAndActiveTrue(token).isPresent());
+        } while (shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256(token)).isPresent());
         return token;
     }
 }

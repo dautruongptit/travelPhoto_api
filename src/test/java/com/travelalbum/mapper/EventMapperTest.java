@@ -3,6 +3,7 @@ package com.travelalbum.mapper;
 import com.travelalbum.dto.response.EventResponse;
 import com.travelalbum.entity.Event;
 import com.travelalbum.entity.User;
+import com.travelalbum.repository.EventMemberRepository;
 import com.travelalbum.repository.PhotoRepository;
 import com.travelalbum.repository.ShareLinkRepository;
 import com.travelalbum.repository.UserRepository;
@@ -25,7 +26,8 @@ class EventMapperTest {
     private final PhotoUrlBuilder photoUrlBuilder = mock(PhotoUrlBuilder.class);
     private final PhotoRepository photoRepository = mock(PhotoRepository.class);
     private final ShareLinkRepository shareLinkRepository = mock(ShareLinkRepository.class);
-    private final EventMapper eventMapper = new EventMapper(userRepository, userMapper, photoUrlBuilder, photoRepository, shareLinkRepository);
+    private final EventMemberRepository eventMemberRepository = mock(EventMemberRepository.class);
+    private final EventMapper eventMapper = new EventMapper(userRepository, userMapper, photoUrlBuilder, photoRepository, shareLinkRepository, eventMemberRepository);
 
     private Event event(long id, long ownerId) {
         return Event.builder().id(id).ownerId(ownerId).name("Event " + id).build();

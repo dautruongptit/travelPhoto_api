@@ -2,7 +2,10 @@ package com.travelalbum.mapper;
 
 import com.travelalbum.dto.response.EventResponse;
 import com.travelalbum.entity.Event;
+import com.travelalbum.entity.EventMember;
 import com.travelalbum.entity.User;
+import com.travelalbum.enums.EventMemberRole;
+import com.travelalbum.repository.EventMemberRepository;
 import com.travelalbum.repository.PhotoRepository;
 import com.travelalbum.repository.ShareLinkRepository;
 import com.travelalbum.repository.UserRepository;
@@ -26,21 +29,27 @@ public class EventMapper {
     private final PhotoUrlBuilder photoUrlBuilder;
     private final PhotoRepository photoRepository;
     private final ShareLinkRepository shareLinkRepository;
+    private final EventMemberRepository eventMemberRepository;
 
     public EventResponse toResponse(Event event) {
+        return toResponse(event, (Long) null);
+    }
+
+    public EventResponse toResponse(Event event, Long requesterId) {
         String ownerName = userRepository.findById(event.getOwnerId())
                 .map(userMapper::toDisplayName)
                 .orElse(null);
         boolean hasActiveLink = !event.isPublicAlbum()
                 && shareLinkRepository.existsActiveByEventId(event.getId(), LocalDateTime.now());
-        return toResponse(event, ownerName, hasActiveLink);
+        String userRole = resolveUserRole(event, requesterId);
+        return toResponse(event, ownerName, hasActiveLink, userRole);
     }
 
-    /**
-     * Map cả danh sách event trong 1 lần gọi, chỉ query owner 1 lần cho cả danh sách
-     * (thay vì 1 query/event như toResponse(Event) — tránh N+1 khi list/search events).
-     */
     public List<EventResponse> toResponseList(List<Event> events) {
+        return toResponseList(events, null);
+    }
+
+    public List<EventResponse> toResponseList(List<Event> events, Long requesterId) {
         if (events.isEmpty()) {
             return List.of();
         }
@@ -50,7 +59,10 @@ public class EventMapper {
         List<Long> eventIds = events.stream().map(Event::getId).toList();
         Set<Long> withActiveLink = new HashSet<>(shareLinkRepository.findEventIdsWithActiveLink(eventIds, LocalDateTime.now()));
         return events.stream()
-                .map(event -> toResponse(event, ownerNameById.get(event.getOwnerId()), withActiveLink.contains(event.getId())))
+                .map(event -> {
+                    String userRole = resolveUserRole(event, requesterId);
+                    return toResponse(event, ownerNameById.get(event.getOwnerId()), withActiveLink.contains(event.getId()), userRole);
+                })
                 .toList();
     }
 
@@ -71,7 +83,19 @@ public class EventMapper {
         return hasActiveLink ? "link" : "private";
     }
 
-    private EventResponse toResponse(Event event, String ownerName, boolean hasActiveLink) {
+    private String resolveUserRole(Event event, Long requesterId) {
+        if (requesterId == null) {
+            return null;
+        }
+        if (event.getOwnerId().equals(requesterId)) {
+            return "owner";
+        }
+        return eventMemberRepository.findByEventIdAndUserId(event.getId(), requesterId)
+                .map(member -> member.getRole() == EventMemberRole.EDITOR ? "editor" : "viewer")
+                .orElse(null);
+    }
+
+    private EventResponse toResponse(Event event, String ownerName, boolean hasActiveLink, String userRole) {
         String coverImageUrl = event.getCoverImagePath() != null
                 ? photoUrlBuilder.buildEventCoverUrl(event.getId())
                 : null;
@@ -90,6 +114,7 @@ public class EventMapper {
                 .photoCount(event.getPhotoCount())
                 .totalSize(event.getTotalSize())
                 .createdAt(event.getCreatedAt())
+                .userRole(userRole)
                 .build();
     }
 }

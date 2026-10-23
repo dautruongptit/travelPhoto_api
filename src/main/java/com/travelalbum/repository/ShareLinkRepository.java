@@ -11,8 +11,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ShareLinkRepository extends JpaRepository<ShareLink, Long> {
-    Optional<ShareLink> findByTokenAndActiveTrue(String token);
+    Optional<ShareLink> findByTokenHashAndActiveTrue(String tokenHash);
     List<ShareLink> findByEventId(Long eventId);
+    List<ShareLink> findByEventIdAndActiveTrue(Long eventId);
 
     /** Album có ít nhất 1 link chia sẻ còn hiệu lực (active và chưa hết hạn). */
     @Query("SELECT COUNT(s) > 0 FROM ShareLink s WHERE s.event.id = :eventId AND s.active = true "

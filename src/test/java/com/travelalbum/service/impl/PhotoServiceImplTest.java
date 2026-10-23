@@ -290,18 +290,17 @@ class PhotoServiceImplTest {
         event.setPhotoCount(3);
         event.setTotalSize(3000L);
         Photo photo = Photo.builder().id(500L).event(event).path("ev-folder/x.jpg").size(1000L).build();
-        User owner = owner(3000L, 10_000_000L);
 
         when(photoRepository.findById(500L)).thenReturn(Optional.of(photo));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
 
         photoService.delete(500L, 1L, false);
 
         assertThat(event.getPhotoCount()).isEqualTo(2);
         assertThat(event.getTotalSize()).isEqualTo(2000L);
-        assertThat(owner.getStorageUsed()).isEqualTo(2000L);
-        verify(storageService).delete("dautruong_000001", "ev-folder/x.jpg");
-        verify(photoRepository).delete(photo);
+        assertThat(photo.getDeletedAt()).isNotNull();
+        assertThat(photo.getDeletedBy()).isEqualTo(1L);
+        verify(photoRepository).save(photo);
+        verify(storageService, never()).delete(anyString(), anyString());
         verify(auditLogService).log(eq(1L), eq("DELETE_PHOTO"), eq("PHOTO"), eq(500L), any(), any(), eq("SUCCESS"));
     }
 
@@ -311,12 +310,10 @@ class PhotoServiceImplTest {
         Photo ownedPhoto = Photo.builder().id(500L).event(event).path("ev-folder/x.jpg").size(1000L).build();
         Event otherEvent = Event.builder().id(20L).ownerId(2L).storageFolder("other-folder").build();
         Photo notOwnedPhoto = Photo.builder().id(600L).event(otherEvent).path("other-folder/y.jpg").size(500L).build();
-        User owner = owner(1000L, 10_000_000L);
 
         when(photoRepository.findById(500L)).thenReturn(Optional.of(ownedPhoto));
         when(photoRepository.findById(600L)).thenReturn(Optional.of(notOwnedPhoto));
         when(photoRepository.findById(999L)).thenReturn(Optional.empty());
-        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
 
         BatchDeleteResponse result = photoService.deleteBatch(List.of(500L, 600L, 999L), 1L, false);
 
@@ -330,8 +327,7 @@ class PhotoServiceImplTest {
             assertThat(f.getId()).isEqualTo(999L);
             assertThat(f.getErrorCode()).isEqualTo("NOT_FOUND");
         });
-        verify(photoRepository).delete(ownedPhoto);
-        verify(photoRepository, never()).delete(notOwnedPhoto);
+        assertThat(ownedPhoto.getDeletedAt()).isNotNull();
     }
 
     @Test
@@ -359,17 +355,16 @@ class PhotoServiceImplTest {
         event.setPhotoCount(1);
         event.setTotalSize(1000L);
         Photo photo = Photo.builder().id(500L).event(event).path("editor-folder/x.jpg").size(1000L).uploadedBy(2L).build();
-        User uploader = User.builder().id(2L).storageFolder("editor-folder").storageUsed(1000L).storageQuota(10_000_000L).build();
 
         when(photoRepository.findById(500L)).thenReturn(Optional.of(photo));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(uploader));
 
         photoService.delete(500L, 2L, false);
 
         assertThat(event.getPhotoCount()).isEqualTo(0);
-        assertThat(uploader.getStorageUsed()).isEqualTo(0L);
-        verify(storageService).delete("editor-folder", "editor-folder/x.jpg");
-        verify(photoRepository).delete(photo);
+        assertThat(photo.getDeletedAt()).isNotNull();
+        assertThat(photo.getDeletedBy()).isEqualTo(2L);
+        verify(photoRepository).save(photo);
+        verify(storageService, never()).delete(anyString(), anyString());
     }
 
     @Test

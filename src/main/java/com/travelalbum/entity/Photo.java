@@ -102,4 +102,10 @@ public class Photo {
     @CreationTimestamp
     @Column(name = "uploaded_time", updatable = false)
     private LocalDateTime uploadedTime;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "deleted_by")
+    private Long deletedBy;
 }

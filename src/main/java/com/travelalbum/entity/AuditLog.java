@@ -49,6 +49,9 @@ public class AuditLog {
     @Column(nullable = false, length = 20)
     private String result;
 
+    @Column(length = 500)
+    private String detail;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 }

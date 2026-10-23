@@ -20,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.travelalbum.util.TokenHashUtil;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -69,7 +70,7 @@ class ShareServiceImplTest {
     void create_buildsShareUrlFromFrontendUrl_whenOwner() {
         Event event = Event.builder().id(1L).ownerId(1L).build();
         when(eventRepository.findById(1L)).thenReturn(Optional.of(event));
-        when(shareLinkRepository.findByTokenAndActiveTrue(anyString())).thenReturn(Optional.empty());
+        when(shareLinkRepository.findByTokenHashAndActiveTrue(anyString())).thenReturn(Optional.empty());
 
         ShareLinkResponse response = shareService.create(1L, 1L, EventMemberRole.VIEWER);
 
@@ -85,7 +86,7 @@ class ShareServiceImplTest {
     void create_defaultsToViewerRole_whenRoleNotProvided() {
         Event event = Event.builder().id(1L).ownerId(1L).build();
         when(eventRepository.findById(1L)).thenReturn(Optional.of(event));
-        when(shareLinkRepository.findByTokenAndActiveTrue(anyString())).thenReturn(Optional.empty());
+        when(shareLinkRepository.findByTokenHashAndActiveTrue(anyString())).thenReturn(Optional.empty());
 
         ShareLinkResponse response = shareService.create(1L, 1L, null);
 
@@ -94,7 +95,7 @@ class ShareServiceImplTest {
 
     @Test
     void getEventByToken_throwsNotFound_whenTokenUnknown() {
-        when(shareLinkRepository.findByTokenAndActiveTrue("bad-token")).thenReturn(Optional.empty());
+        when(shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256("bad-token"))).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> shareService.getEventByToken("bad-token")).isInstanceOf(NotFoundException.class);
     }
@@ -106,7 +107,7 @@ class ShareServiceImplTest {
                 .token("tok").event(event).active(true)
                 .expiredAt(LocalDateTime.now().minusDays(1))
                 .build();
-        when(shareLinkRepository.findByTokenAndActiveTrue("tok")).thenReturn(Optional.of(expired));
+        when(shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256("tok"))).thenReturn(Optional.of(expired));
 
         assertThatThrownBy(() -> shareService.getEventByToken("tok")).isInstanceOf(NotFoundException.class);
     }
@@ -114,8 +115,8 @@ class ShareServiceImplTest {
     @Test
     void getEventByToken_returnsEvent_whenActiveAndNotExpired() {
         Event event = Event.builder().id(1L).name("Da Lat").build();
-        ShareLink link = ShareLink.builder().token("tok").event(event).active(true).expiredAt(null).build();
-        when(shareLinkRepository.findByTokenAndActiveTrue("tok")).thenReturn(Optional.of(link));
+        ShareLink link = ShareLink.builder().token("tok").tokenHash(TokenHashUtil.sha256("tok")).event(event).active(true).expiredAt(null).build();
+        when(shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256("tok"))).thenReturn(Optional.of(link));
         when(eventMapper.toResponse(event)).thenReturn(EventResponse.builder().id(1L).name("Da Lat").build());
 
         EventResponse response = shareService.getEventByToken("tok");
@@ -126,8 +127,8 @@ class ShareServiceImplTest {
     @Test
     void revoke_throwsAccessDenied_whenNotOwnerAndNotAdmin() {
         Event event = Event.builder().id(1L).ownerId(1L).build();
-        ShareLink link = ShareLink.builder().token("tok").event(event).active(true).build();
-        when(shareLinkRepository.findByTokenAndActiveTrue("tok")).thenReturn(Optional.of(link));
+        ShareLink link = ShareLink.builder().token("tok").tokenHash(TokenHashUtil.sha256("tok")).event(event).active(true).build();
+        when(shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256("tok"))).thenReturn(Optional.of(link));
 
         assertThatThrownBy(() -> shareService.revoke("tok", 2L, false)).isInstanceOf(AccessDeniedException.class);
         assertThat(link.isActive()).isTrue();
@@ -136,8 +137,8 @@ class ShareServiceImplTest {
     @Test
     void revoke_deactivatesLink_whenOwner() {
         Event event = Event.builder().id(1L).ownerId(1L).build();
-        ShareLink link = ShareLink.builder().token("tok").event(event).active(true).build();
-        when(shareLinkRepository.findByTokenAndActiveTrue("tok")).thenReturn(Optional.of(link));
+        ShareLink link = ShareLink.builder().token("tok").tokenHash(TokenHashUtil.sha256("tok")).event(event).active(true).build();
+        when(shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256("tok"))).thenReturn(Optional.of(link));
 
         shareService.revoke("tok", 1L, false);
 
@@ -149,8 +150,8 @@ class ShareServiceImplTest {
     @Test
     void revoke_succeeds_whenAdminButNotOwner() {
         Event event = Event.builder().id(1L).ownerId(1L).build();
-        ShareLink link = ShareLink.builder().token("tok").event(event).active(true).build();
-        when(shareLinkRepository.findByTokenAndActiveTrue("tok")).thenReturn(Optional.of(link));
+        ShareLink link = ShareLink.builder().token("tok").tokenHash(TokenHashUtil.sha256("tok")).event(event).active(true).build();
+        when(shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256("tok"))).thenReturn(Optional.of(link));
 
         shareService.revoke("tok", 999L, true);
 
@@ -159,7 +160,7 @@ class ShareServiceImplTest {
 
     @Test
     void joinByToken_throwsNotFound_whenTokenUnknown() {
-        when(shareLinkRepository.findByTokenAndActiveTrue("bad-token")).thenReturn(Optional.empty());
+        when(shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256("bad-token"))).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> shareService.joinByToken("bad-token", 2L)).isInstanceOf(NotFoundException.class);
         verify(eventMemberRepository, never()).save(any());
@@ -168,9 +169,9 @@ class ShareServiceImplTest {
     @Test
     void joinByToken_createsMemberWithLinkRole() {
         Event event = Event.builder().id(1L).ownerId(1L).build();
-        ShareLink link = ShareLink.builder().token("tok").event(event).active(true)
+        ShareLink link = ShareLink.builder().token("tok").tokenHash(TokenHashUtil.sha256("tok")).event(event).active(true)
                 .role(EventMemberRole.EDITOR).createdBy(1L).build();
-        when(shareLinkRepository.findByTokenAndActiveTrue("tok")).thenReturn(Optional.of(link));
+        when(shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256("tok"))).thenReturn(Optional.of(link));
         when(eventMemberRepository.existsByEventIdAndUserId(1L, 2L)).thenReturn(false);
 
         Long returnedEventId = shareService.joinByToken("tok", 2L);
@@ -184,9 +185,9 @@ class ShareServiceImplTest {
     @Test
     void joinByToken_isIdempotent_whenAlreadyMember() {
         Event event = Event.builder().id(1L).ownerId(1L).build();
-        ShareLink link = ShareLink.builder().token("tok").event(event).active(true)
+        ShareLink link = ShareLink.builder().token("tok").tokenHash(TokenHashUtil.sha256("tok")).event(event).active(true)
                 .role(EventMemberRole.VIEWER).build();
-        when(shareLinkRepository.findByTokenAndActiveTrue("tok")).thenReturn(Optional.of(link));
+        when(shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256("tok"))).thenReturn(Optional.of(link));
         when(eventMemberRepository.existsByEventIdAndUserId(1L, 2L)).thenReturn(true);
 
         Long returnedEventId = shareService.joinByToken("tok", 2L);
@@ -199,9 +200,9 @@ class ShareServiceImplTest {
     @Test
     void joinByToken_isNoOp_whenOwnerJoinsTheirOwnLink() {
         Event event = Event.builder().id(1L).ownerId(1L).build();
-        ShareLink link = ShareLink.builder().token("tok").event(event).active(true)
+        ShareLink link = ShareLink.builder().token("tok").tokenHash(TokenHashUtil.sha256("tok")).event(event).active(true)
                 .role(EventMemberRole.EDITOR).build();
-        when(shareLinkRepository.findByTokenAndActiveTrue("tok")).thenReturn(Optional.of(link));
+        when(shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256("tok"))).thenReturn(Optional.of(link));
 
         Long returnedEventId = shareService.joinByToken("tok", 1L);
 

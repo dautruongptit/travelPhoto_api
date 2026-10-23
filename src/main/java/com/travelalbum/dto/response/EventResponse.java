@@ -25,4 +25,6 @@ public class EventResponse {
     private int photoCount;
     private long totalSize;
     private LocalDateTime createdAt;
+    /** Role of the current requester: "owner", "editor", "viewer", or null if unknown. */
+    private String userRole;
 }

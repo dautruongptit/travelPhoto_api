@@ -161,6 +161,13 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
+    public EventResponse getById(Long id, Long requesterId) {
+        Event event = eventRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Event not found"));
+        return eventMapper.toResponse(event, requesterId);
+    }
+
+    @Override
     @Transactional
     public EventResponse setPublic(Long id, boolean publicAlbum) {
         Event event = eventRepository.findById(id)
@@ -171,20 +178,16 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public Page<EventResponse> list(Pageable pageable, Long requesterId, boolean isAdmin) {
-        // ADMIN xem toàn bộ (dùng cho AdminController/dashboard quản trị); USER chỉ thấy
-        // event của chính mình + event đã tham gia (member) — trước đây findAll() không lọc, lộ event của user khác.
-        return toResponsePage(isAdmin ? eventRepository.findAll(pageable) : eventRepository.findAccessibleByUser(requesterId, pageable));
+        return toResponsePage(isAdmin ? eventRepository.findAll(pageable) : eventRepository.findAccessibleByUser(requesterId, pageable), requesterId);
     }
 
     @Override
     public Page<EventResponse> search(String keyword, Pageable pageable, Long requesterId, boolean isAdmin) {
-        return toResponsePage(isAdmin ? eventRepository.search(keyword, pageable) : eventRepository.searchAccessibleByUser(keyword, requesterId, pageable));
+        return toResponsePage(isAdmin ? eventRepository.search(keyword, pageable) : eventRepository.searchAccessibleByUser(keyword, requesterId, pageable), requesterId);
     }
 
-    // Map cả trang event 1 lần (EventMapper.toResponseList batch owner lookup) thay vì
-    // Page.map(eventMapper::toResponse) — tránh N+1 query lấy owner cho từng event.
-    private Page<EventResponse> toResponsePage(Page<Event> events) {
-        return new PageImpl<>(eventMapper.toResponseList(events.getContent()), events.getPageable(), events.getTotalElements());
+    private Page<EventResponse> toResponsePage(Page<Event> events, Long requesterId) {
+        return new PageImpl<>(eventMapper.toResponseList(events.getContent(), requesterId), events.getPageable(), events.getTotalElements());
     }
 
     private void validateCoverImage(MultipartFile file) {

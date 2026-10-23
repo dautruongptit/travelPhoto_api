@@ -13,10 +13,10 @@ import java.util.Optional;
 
 public interface PhotoRepository extends JpaRepository<Photo, Long> {
 
-    boolean existsByEventIdAndOriginalName(Long eventId, String originalName);
+    @Query("SELECT COUNT(p) > 0 FROM Photo p WHERE p.event.id = :eventId AND p.originalName = :name AND p.deletedAt IS NULL")
+    boolean existsByEventIdAndOriginalName(@Param("eventId") Long eventId, @Param("name") String name);
 
-    /** Id ảnh của event, mới nhất trước — dùng chọn vài ảnh làm thumbnail cho thẻ album. */
-    @Query("SELECT p.id FROM Photo p WHERE p.event.id = :eventId ORDER BY p.id DESC")
+    @Query("SELECT p.id FROM Photo p WHERE p.event.id = :eventId AND p.deletedAt IS NULL ORDER BY p.id DESC")
     List<Long> findPhotoIdsByEventId(@Param("eventId") Long eventId, Pageable pageable);
 
     /** Ảnh chưa đọc EXIF (upload trước khi có tính năng EXIF) — dùng cho ExifBackfillService. */
@@ -32,17 +32,18 @@ public interface PhotoRepository extends JpaRepository<Photo, Long> {
     @Query("SELECT p.event.ownerId FROM Photo p WHERE p.id = :photoId")
     Optional<Long> findOwnerIdByPhotoId(@Param("photoId") Long photoId);
 
-    Page<Photo> findByEventId(Long eventId, Pageable pageable);
+    @Query("SELECT p FROM Photo p WHERE p.event.id = :eventId AND p.deletedAt IS NULL")
+    Page<Photo> findByEventId(@Param("eventId") Long eventId, Pageable pageable);
 
     List<Photo> findByIdIn(List<Long> ids);
 
-    @Query("SELECT COUNT(p) FROM Photo p WHERE p.event.id = :eventId")
+    @Query("SELECT COUNT(p) FROM Photo p WHERE p.event.id = :eventId AND p.deletedAt IS NULL")
     long countByEvent(@Param("eventId") Long eventId);
 
-    @Query("SELECT p FROM Photo p WHERE lower(p.originalName) LIKE lower(concat('%', :kw, '%'))")
+    @Query("SELECT p FROM Photo p WHERE p.deletedAt IS NULL AND lower(p.originalName) LIKE lower(concat('%', :kw, '%'))")
     Page<Photo> search(@Param("kw") String keyword, Pageable pageable);
 
-    @Query("SELECT p FROM Photo p WHERE p.event.ownerId = :ownerId AND lower(p.originalName) LIKE lower(concat('%', :kw, '%'))")
+    @Query("SELECT p FROM Photo p WHERE p.deletedAt IS NULL AND p.event.ownerId = :ownerId AND lower(p.originalName) LIKE lower(concat('%', :kw, '%'))")
     Page<Photo> searchByOwner(@Param("kw") String keyword, @Param("ownerId") Long ownerId, Pageable pageable);
 
     long countByUploadedTimeBetween(LocalDateTime from, LocalDateTime to);

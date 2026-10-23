@@ -16,6 +16,7 @@ public interface EventService {
     void delete(Long id, Long requesterId, boolean isAdmin);
     BatchDeleteResponse deleteBatch(List<Long> ids, Long requesterId, boolean isAdmin);
     EventResponse getById(Long id);
+    EventResponse getById(Long id, Long requesterId);
     /** Chủ album bật/tắt "Công khai" (mọi người đã đăng nhập xem được, chỉ đọc). */
     EventResponse setPublic(Long id, boolean publicAlbum);
     Page<EventResponse> list(Pageable pageable, Long requesterId, boolean isAdmin);

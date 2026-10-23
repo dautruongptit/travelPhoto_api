@@ -19,6 +19,7 @@ import com.travelalbum.repository.ShareLinkRepository;
 import com.travelalbum.repository.UserRepository;
 import com.travelalbum.service.AuditLogService;
 import com.travelalbum.service.PhotoService;
+import com.travelalbum.util.TokenHashUtil;
 import com.travelalbum.storage.ExifInfo;
 import com.travelalbum.storage.HeicSupport;
 import com.travelalbum.storage.RawImageSupport;
@@ -171,6 +172,7 @@ public class PhotoServiceImpl implements PhotoService {
     @Transactional
     public void delete(Long photoId, Long requesterId, boolean isAdmin) {
         Photo photo = photoRepository.findById(photoId)
+                .filter(p -> p.getDeletedAt() == null)
                 .orElseThrow(() -> new NotFoundException("Photo not found"));
         Long eventOwnerId = photo.getEvent().getOwnerId();
         boolean isEventOwner = eventOwnerId.equals(requesterId);
@@ -179,27 +181,15 @@ public class PhotoServiceImpl implements PhotoService {
             throw new AccessDeniedException("Not allowed to delete this photo");
         }
 
-        // Ảnh vật lý nằm trong storage folder của NGƯỜI UPLOAD (xem uploadMultiple), không
-        // phải owner của event — chỉ fallback về owner khi ảnh cũ không còn uploadedBy
-        // (tài khoản gốc đã bị xoá, FK ON DELETE SET NULL).
-        Long fileOwnerUserId = photo.getUploadedBy() != null ? photo.getUploadedBy() : eventOwnerId;
-        User fileOwner = userRepository.findById(fileOwnerUserId)
-                .orElseThrow(() -> new NotFoundException("Owner not found"));
-        storageService.delete(fileOwner.getStorageFolder(), photo.getPath());
-        if (photo.getPreviewPath() != null) {
-            storageService.delete(fileOwner.getStorageFolder(), photo.getPreviewPath());
-        }
-        storageService.delete(fileOwner.getStorageFolder(), com.travelalbum.storage.ThumbnailSupport.thumbPathFor(photo.getPath()));
+        photo.setDeletedAt(LocalDateTime.now());
+        photo.setDeletedBy(requesterId);
+        photoRepository.save(photo);
 
         Event event = photo.getEvent();
         event.setPhotoCount(Math.max(0, event.getPhotoCount() - 1));
         event.setTotalSize(Math.max(0, event.getTotalSize() - photo.getSize()));
         eventRepository.save(event);
 
-        fileOwner.setStorageUsed(Math.max(0, fileOwner.getStorageUsed() - photo.getSize()));
-        userRepository.save(fileOwner);
-
-        photoRepository.delete(photo);
         auditLogService.log(requesterId, "DELETE_PHOTO", "PHOTO", photoId, null, null, "SUCCESS");
     }
 
@@ -234,6 +224,7 @@ public class PhotoServiceImpl implements PhotoService {
     @Transactional(readOnly = true)
     public Photo getPhotoForDownload(Long photoId, String token, Long requesterId, boolean isAdmin) {
         Photo photo = photoRepository.findById(photoId)
+                .filter(p -> p.getDeletedAt() == null)
                 .orElseThrow(() -> new NotFoundException("Photo not found"));
 
         if (hasAccessToPhoto(photo, token, requesterId, isAdmin)) {
@@ -281,9 +272,10 @@ public class PhotoServiceImpl implements PhotoService {
             return true;
         }
 
-        // 4. Share token
+        // 4. Share token (hashed lookup)
         if (token != null && !token.isBlank()) {
-            return shareLinkRepository.findByTokenAndActiveTrue(token)
+            String tokenHash = TokenHashUtil.sha256(token);
+            return shareLinkRepository.findByTokenHashAndActiveTrue(tokenHash)
                     .filter(l -> l.getExpiredAt() == null || l.getExpiredAt().isAfter(LocalDateTime.now()))
                     .map(l -> l.getEvent().getId().equals(eventId))
                     .orElse(false);

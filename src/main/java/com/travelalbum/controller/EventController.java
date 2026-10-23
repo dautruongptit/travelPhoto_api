@@ -57,8 +57,8 @@ public class EventController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or @eventSecurity.canView(#id, authentication)")
-    public ApiResponse<EventResponse> getById(@PathVariable Long id) {
-        return ApiResponse.success("OK", eventService.getById(id));
+    public ApiResponse<EventResponse> getById(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResponse.success("OK", eventService.getById(id, principal.getId()));
     }
 
     @Auditable(action = "CREATE_EVENT", targetType = "EVENT")
@@ -79,7 +79,7 @@ public class EventController {
         return ApiResponse.success("Event updated", eventService.update(id, req, principal.getId()));
     }
 
-    @Auditable(action = "DELETE_EVENT", targetType = "EVENT")
+    @Auditable(action = "SET_PUBLIC", targetType = "EVENT")
     @PutMapping("/{id}/public")
     @PreAuthorize("hasRole('ADMIN') or @eventSecurity.isOwner(#id, authentication)")
     public ApiResponse<EventResponse> setPublic(@PathVariable Long id,
