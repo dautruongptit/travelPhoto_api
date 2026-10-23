@@ -60,8 +60,11 @@ public class ShareController {
     }
 
     @GetMapping("/api/share/{token}/photos")
-    public ApiResponse<Page<PhotoResponse>> listByToken(@PathVariable String token, Pageable pageable) {
-        return ApiResponse.success("OK", shareService.listPhotosByToken(token, pageable));
+    public ApiResponse<Page<PhotoResponse>> listByToken(@PathVariable String token,
+                                                         @AuthenticationPrincipal UserPrincipal principal,
+                                                         Pageable pageable) {
+        Long requesterId = principal != null ? principal.getId() : null;
+        return ApiResponse.success("OK", shareService.listPhotosByToken(token, requesterId, pageable));
     }
 
     @PostMapping("/api/share/{token}/join")

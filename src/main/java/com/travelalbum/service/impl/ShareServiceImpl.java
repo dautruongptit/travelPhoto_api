@@ -8,6 +8,7 @@ import com.travelalbum.entity.Event;
 import com.travelalbum.entity.EventMember;
 import com.travelalbum.entity.ShareLink;
 import com.travelalbum.enums.EventMemberRole;
+import com.travelalbum.exception.BusinessException;
 import com.travelalbum.exception.NotFoundException;
 import com.travelalbum.mapper.EventMapper;
 import com.travelalbum.mapper.PhotoMapper;
@@ -55,6 +56,9 @@ public class ShareServiceImpl implements ShareService {
             throw new AccessDeniedException("Not the owner of this event");
         }
         EventMemberRole linkRole = role != null ? role : EventMemberRole.VIEWER;
+        if (shareLinkRepository.findByEventIdAndRoleAndActiveTrue(eventId, linkRole).isPresent()) {
+            throw new BusinessException("Đã tồn tại link chia sẻ với quyền " + linkRole.name() + " cho album này", "SHARE_LINK_EXISTS");
+        }
         String token = generateUniqueToken();
         String tokenHash = TokenHashUtil.sha256(token);
         LocalDateTime expiredAt = LocalDateTime.now().plusDays(DEFAULT_LINK_TTL_DAYS);
@@ -83,12 +87,16 @@ public class ShareServiceImpl implements ShareService {
     @Transactional(readOnly = true)
     public ShareInfoResponse getShareInfo(String token, Long requesterId) {
         ShareLink link = findActiveLink(token);
+        if (link.getRole() == EventMemberRole.EDITOR && requesterId == null) {
+            throw new AccessDeniedException("Link Editor yêu cầu đăng nhập để xem album");
+        }
         EventResponse event = requesterId != null
                 ? eventMapper.toResponse(link.getEvent(), requesterId)
                 : eventMapper.toResponse(link.getEvent());
         return ShareInfoResponse.builder()
                 .event(event)
                 .linkRole(link.getRole())
+                .requiresAuth(link.getRole() == EventMemberRole.EDITOR)
                 .build();
     }
 
@@ -104,8 +112,11 @@ public class ShareServiceImpl implements ShareService {
     }
 
     @Override
-    public Page<PhotoResponse> listPhotosByToken(String token, Pageable pageable) {
+    public Page<PhotoResponse> listPhotosByToken(String token, Long requesterId, Pageable pageable) {
         ShareLink link = findActiveLink(token);
+        if (link.getRole() == EventMemberRole.EDITOR && requesterId == null) {
+            throw new AccessDeniedException("Link Editor yêu cầu đăng nhập để xem album");
+        }
         return photoRepository.findByEventId(link.getEvent().getId(), pageable).map(photoMapper::toResponse);
     }
 

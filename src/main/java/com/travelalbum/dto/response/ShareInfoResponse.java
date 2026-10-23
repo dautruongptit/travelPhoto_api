@@ -13,4 +13,5 @@ import lombok.NoArgsConstructor;
 public class ShareInfoResponse {
     private EventResponse event;
     private EventMemberRole linkRole;
+    private boolean requiresAuth;
 }

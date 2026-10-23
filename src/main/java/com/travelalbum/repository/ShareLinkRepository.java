@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.travelalbum.enums.EventMemberRole;
+
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -14,6 +16,8 @@ public interface ShareLinkRepository extends JpaRepository<ShareLink, Long> {
     Optional<ShareLink> findByTokenHashAndActiveTrue(String tokenHash);
     List<ShareLink> findByEventId(Long eventId);
     List<ShareLink> findByEventIdAndActiveTrue(Long eventId);
+
+    Optional<ShareLink> findByEventIdAndRoleAndActiveTrue(Long eventId, EventMemberRole role);
 
     /** Album có ít nhất 1 link chia sẻ còn hiệu lực (active và chưa hết hạn). */
     @Query("SELECT COUNT(s) > 0 FROM ShareLink s WHERE s.event.id = :eventId AND s.active = true "
