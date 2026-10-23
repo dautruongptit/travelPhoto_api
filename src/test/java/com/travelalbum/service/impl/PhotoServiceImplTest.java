@@ -368,6 +368,19 @@ class PhotoServiceImplTest {
     }
 
     @Test
+    void uploadMultiple_throwsAccessDenied_whenViewerMember() {
+        Event event = ownedEvent();
+        when(eventRepository.findById(10L)).thenReturn(Optional.of(event));
+        when(eventMemberRepository.existsByEventIdAndUserIdAndRole(10L, 3L, EventMemberRole.EDITOR)).thenReturn(false);
+
+        MultipartFile[] files = { new MockMultipartFile("files", "a.jpg", "image/jpeg", "x".getBytes()) };
+
+        assertThatThrownBy(() -> photoService.uploadMultiple(10L, files, 3L))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(photoRepository, never()).save(any());
+    }
+
+    @Test
     void delete_deniesMemberWhoDidNotUploadTheirPhoto() {
         Event event = ownedEvent();
         Photo photo = Photo.builder().id(500L).event(event).path("ev-folder/x.jpg").size(1000L).uploadedBy(2L).build();

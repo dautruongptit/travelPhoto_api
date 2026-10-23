@@ -1,6 +1,7 @@
 package com.travelalbum.service.impl;
 
 import com.travelalbum.dto.response.EventResponse;
+import com.travelalbum.dto.response.ShareInfoResponse;
 import com.travelalbum.dto.response.ShareLinkResponse;
 import com.travelalbum.entity.Event;
 import com.travelalbum.entity.EventMember;
@@ -156,6 +157,71 @@ class ShareServiceImplTest {
         shareService.revoke("tok", 999L, true);
 
         assertThat(link.isActive()).isFalse();
+    }
+
+    @Test
+    void getShareInfo_returnsLinkRoleAndEvent_whenNoRequester() {
+        Event event = Event.builder().id(1L).name("Da Lat").build();
+        ShareLink link = ShareLink.builder().tokenHash(TokenHashUtil.sha256("tok")).event(event)
+                .active(true).role(EventMemberRole.EDITOR).build();
+        when(shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256("tok"))).thenReturn(Optional.of(link));
+        when(eventMapper.toResponse(event)).thenReturn(EventResponse.builder().id(1L).name("Da Lat").build());
+
+        ShareInfoResponse info = shareService.getShareInfo("tok", null);
+
+        assertThat(info.getLinkRole()).isEqualTo(EventMemberRole.EDITOR);
+        assertThat(info.getEvent().getId()).isEqualTo(1L);
+        assertThat(info.getEvent().getUserRole()).isNull();
+    }
+
+    @Test
+    void getShareInfo_returnsUserRole_whenRequesterIsMember() {
+        Event event = Event.builder().id(1L).name("Da Lat").build();
+        ShareLink link = ShareLink.builder().tokenHash(TokenHashUtil.sha256("tok")).event(event)
+                .active(true).role(EventMemberRole.VIEWER).build();
+        when(shareLinkRepository.findByTokenHashAndActiveTrue(TokenHashUtil.sha256("tok"))).thenReturn(Optional.of(link));
+        EventResponse resp = EventResponse.builder().id(1L).name("Da Lat").userRole("editor").build();
+        when(eventMapper.toResponse(event, 2L)).thenReturn(resp);
+
+        ShareInfoResponse info = shareService.getShareInfo("tok", 2L);
+
+        assertThat(info.getLinkRole()).isEqualTo(EventMemberRole.VIEWER);
+        assertThat(info.getEvent().getUserRole()).isEqualTo("editor");
+    }
+
+    @Test
+    void revokeById_throwsAccessDenied_whenNotOwner() {
+        Event event = Event.builder().id(1L).ownerId(1L).build();
+        when(eventRepository.findById(1L)).thenReturn(Optional.of(event));
+
+        assertThatThrownBy(() -> shareService.revokeById(1L, 10L, 2L))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void revokeById_throwsAccessDenied_whenLinkBelongsToOtherEvent() {
+        Event event = Event.builder().id(1L).ownerId(1L).build();
+        Event otherEvent = Event.builder().id(2L).build();
+        ShareLink link = ShareLink.builder().id(10L).event(otherEvent).active(true).build();
+        when(eventRepository.findById(1L)).thenReturn(Optional.of(event));
+        when(shareLinkRepository.findById(10L)).thenReturn(Optional.of(link));
+
+        assertThatThrownBy(() -> shareService.revokeById(1L, 10L, 1L))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void revokeById_deactivatesLink_whenOwner() {
+        Event event = Event.builder().id(1L).ownerId(1L).build();
+        ShareLink link = ShareLink.builder().id(10L).event(event).active(true).build();
+        when(eventRepository.findById(1L)).thenReturn(Optional.of(event));
+        when(shareLinkRepository.findById(10L)).thenReturn(Optional.of(link));
+
+        shareService.revokeById(1L, 10L, 1L);
+
+        assertThat(link.isActive()).isFalse();
+        verify(shareLinkRepository).save(link);
+        verify(auditLogService).log(eq(1L), eq("REVOKE_SHARE_LINK"), eq("EVENT"), eq(1L), any(), any(), eq("SUCCESS"));
     }
 
     @Test

@@ -2,7 +2,9 @@ package com.travelalbum.mapper;
 
 import com.travelalbum.dto.response.EventResponse;
 import com.travelalbum.entity.Event;
+import com.travelalbum.entity.EventMember;
 import com.travelalbum.entity.User;
+import com.travelalbum.enums.EventMemberRole;
 import com.travelalbum.repository.EventMemberRepository;
 import com.travelalbum.repository.PhotoRepository;
 import com.travelalbum.repository.ShareLinkRepository;
@@ -10,6 +12,7 @@ import com.travelalbum.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -78,6 +81,51 @@ class EventMapperTest {
             arg.forEach(actual::add);
             return actual.equals(new java.util.HashSet<>(java.util.Arrays.asList(expected)));
         });
+    }
+
+    @Test
+    void toResponse_userRole_owner_whenRequesterIsOwner() {
+        Event e = event(1L, 10L);
+        when(userRepository.findById(10L)).thenReturn(Optional.of(User.builder().id(10L).fullName("Owner").build()));
+
+        EventResponse r = eventMapper.toResponse(e, 10L);
+
+        assertThat(r.getUserRole()).isEqualTo("owner");
+    }
+
+    @Test
+    void toResponse_userRole_editor_whenRequesterIsEditorMember() {
+        Event e = event(1L, 10L);
+        when(userRepository.findById(10L)).thenReturn(Optional.of(User.builder().id(10L).fullName("Owner").build()));
+        EventMember editorMember = EventMember.builder().userId(20L).role(EventMemberRole.EDITOR).build();
+        when(eventMemberRepository.findByEventIdAndUserId(1L, 20L)).thenReturn(Optional.of(editorMember));
+
+        EventResponse r = eventMapper.toResponse(e, 20L);
+
+        assertThat(r.getUserRole()).isEqualTo("editor");
+    }
+
+    @Test
+    void toResponse_userRole_viewer_whenRequesterIsViewerMember() {
+        Event e = event(1L, 10L);
+        when(userRepository.findById(10L)).thenReturn(Optional.of(User.builder().id(10L).fullName("Owner").build()));
+        EventMember viewerMember = EventMember.builder().userId(30L).role(EventMemberRole.VIEWER).build();
+        when(eventMemberRepository.findByEventIdAndUserId(1L, 30L)).thenReturn(Optional.of(viewerMember));
+
+        EventResponse r = eventMapper.toResponse(e, 30L);
+
+        assertThat(r.getUserRole()).isEqualTo("viewer");
+    }
+
+    @Test
+    void toResponse_userRole_null_whenRequesterIsUnknown() {
+        Event e = event(1L, 10L);
+        when(userRepository.findById(10L)).thenReturn(Optional.of(User.builder().id(10L).fullName("Owner").build()));
+        when(eventMemberRepository.findByEventIdAndUserId(1L, 99L)).thenReturn(Optional.empty());
+
+        EventResponse r = eventMapper.toResponse(e, 99L);
+
+        assertThat(r.getUserRole()).isNull();
     }
 
     @Test
