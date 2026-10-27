@@ -64,7 +64,7 @@ public class ShareServiceImpl implements ShareService {
         LocalDateTime expiredAt = LocalDateTime.now().plusDays(DEFAULT_LINK_TTL_DAYS);
         ShareLink link = ShareLink.builder()
             .event(event)
-            .token(null)
+            .token(token)
             .tokenHash(tokenHash)
             .createdBy(userId)
             .active(true)
@@ -158,7 +158,8 @@ public class ShareServiceImpl implements ShareService {
         return shareLinkRepository.findByEventIdAndActiveTrue(eventId).stream()
             .map(link -> ShareLinkResponse.builder()
                 .id(link.getId())
-                .shareUrl(frontendUrl + "/share/[hidden]")
+                .token(link.getToken())
+                .shareUrl(link.getToken() != null ? (frontendUrl + "/share/" + link.getToken()) : (frontendUrl + "/share/[hidden]"))
                 .active(link.isActive())
                 .role(link.getRole())
                 .expiredAt(link.getExpiredAt())
