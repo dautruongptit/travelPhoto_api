@@ -56,8 +56,10 @@ public class ShareServiceImpl implements ShareService {
             throw new AccessDeniedException("Not the owner of this event");
         }
         EventMemberRole linkRole = role != null ? role : EventMemberRole.VIEWER;
-        if (shareLinkRepository.findByEventIdAndRoleAndActiveTrue(eventId, linkRole).isPresent()) {
-            throw new BusinessException("Đã tồn tại link chia sẻ với quyền " + linkRole.name() + " cho album này", "SHARE_LINK_EXISTS");
+        // Mỗi sự kiện chỉ cho phép 1 liên kết chia sẻ hoạt động tại 1 thời điểm
+        // (không phân biệt vai trò) — phải thu hồi link hiện tại mới tạo được link mới.
+        if (shareLinkRepository.existsActiveByEventId(eventId, LocalDateTime.now())) {
+            throw new BusinessException("Sự kiện này đã có 1 liên kết chia sẻ đang hoạt động. Hãy thu hồi link hiện tại trước khi tạo link mới.", "SHARE_LINK_EXISTS");
         }
         String token = generateUniqueToken();
         String tokenHash = TokenHashUtil.sha256(token);
@@ -120,6 +122,10 @@ public class ShareServiceImpl implements ShareService {
         }
         link.setActive(false);
         shareLinkRepository.save(link);
+        // Thu hồi link đồng nghĩa thu hồi luôn quyền của mọi người đã được chia sẻ
+        // qua link này — ảnh họ đã upload vẫn ở lại album (uploadedBy không đổi),
+        // chỉ mất quyền truy cập sự kiện.
+        eventMemberRepository.deleteByEventId(link.getEvent().getId());
         auditLogService.log(requesterId, "REVOKE_SHARE", "EVENT", link.getEvent().getId(), null, null, "SUCCESS");
     }
 
@@ -194,6 +200,9 @@ public class ShareServiceImpl implements ShareService {
         }
         link.setActive(false);
         shareLinkRepository.save(link);
+        // Cùng rule với revoke(token, ...): thu hồi link -> mất quyền truy cập
+        // của mọi member hiện có trong event, ảnh đã upload vẫn giữ nguyên trong album.
+        eventMemberRepository.deleteByEventId(eventId);
         auditLogService.log(requesterId, "REVOKE_SHARE_LINK", "EVENT", eventId, null, null, "SUCCESS");
     }
 
