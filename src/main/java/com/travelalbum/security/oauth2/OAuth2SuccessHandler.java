@@ -36,8 +36,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
     private final AuditLogService auditLogService;
     private final SessionCache sessionCache;
 
-    @Value("${app.frontend-url}")
-    private String frontendUrl;
+    private final OAuth2RedirectTarget redirectTarget;
 
     @Value("${app.cookie-secure:true}")
     private boolean cookieSecure;
@@ -83,6 +82,6 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         // Trỏ thẳng tới trang tĩnh oauth2-callback.html (postMessage về cửa sổ chính rồi tự
         // đóng popup). Trước đây là /oauth2/callback -> rơi vào SPA nên popup tự load nguyên
         // app và đăng nhập ngay trong popup thay vì trả token về cửa sổ chính.
-        response.sendRedirect(frontendUrl + "/oauth2-callback.html?token=" + accessToken);
+        response.sendRedirect(redirectTarget.consume(request) + "/oauth2-callback.html?token=" + accessToken);
     }
 }

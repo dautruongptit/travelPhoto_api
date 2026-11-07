@@ -64,6 +64,9 @@ app:
   frontend-url: ${FRONTEND_URL:http://localhost:8300}
   api-base-url: ${API_BASE_URL:http://localhost:8310}
   cookie-secure: ${COOKIE_SECURE:true}
+  # Origin frontend dev (phân tách bằng dấu phẩy) được phép nhận token đăng nhập Google và gọi CORS,
+  # vd http://localhost:8300,http://localhost:8301. Để trống (mặc định) = tắt.
+  allowed-dev-origins: ${ALLOWED_DEV_ORIGINS:}
   dev-login-enabled: ${DEV_LOGIN_ENABLED:false}   # mặc định FALSE
   dev-login-secret: ${DEV_LOGIN_SECRET:}
 

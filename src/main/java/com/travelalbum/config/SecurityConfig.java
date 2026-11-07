@@ -6,8 +6,11 @@ import com.travelalbum.security.jwt.JwtAuthEntryPoint;
 import com.travelalbum.security.jwt.JwtAuthFilter;
 import com.travelalbum.security.oauth2.CustomOAuth2UserService;
 import com.travelalbum.security.oauth2.OAuth2FailureHandler;
+import com.travelalbum.security.oauth2.OAuth2RedirectTarget;
 import com.travelalbum.security.oauth2.OAuth2SuccessHandler;
+import com.travelalbum.security.oauth2.ReturnOriginAuthorizationRequestResolver;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +26,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /** Cấu hình Security tổng hợp — SEC-02 (Zero Trust) + SEC-04 (OAuth2/JWT) + SEC-20/SEC-25 (bổ sung). */
@@ -39,6 +43,8 @@ public class SecurityConfig {
     private final OAuth2FailureHandler oAuth2FailureHandler;
     private final JwtAuthEntryPoint jwtAuthEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
+    private final ClientRegistrationRepository clientRegistrationRepository;
+    private final OAuth2RedirectTarget redirectTarget;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -73,6 +79,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(ae -> ae.authorizationRequestResolver(
+                                new ReturnOriginAuthorizationRequestResolver(clientRegistrationRepository, redirectTarget)))
                         .userInfoEndpoint(u -> u.userService(customOAuth2UserService))
                         .successHandler(oAuth2SuccessHandler)
                         .failureHandler(oAuth2FailureHandler))
@@ -88,12 +96,14 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         // Gộp chung 1 list: origin thật từ ..env + các cổng local hay dùng khi test (Vite, Postman-adjacent FE)
-        config.setAllowedOrigins(List.of(
+        List<String> origins = new ArrayList<>(List.of(
                 frontendUrl,
                 "http://localhost:5173",
                 "http://localhost:8300",
                 "http://localhost:8310"
         ));
+        origins.addAll(redirectTarget.allowedDevOrigins());
+        config.setAllowedOrigins(origins.stream().distinct().toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Dev-Secret"));
         config.setAllowCredentials(true);
