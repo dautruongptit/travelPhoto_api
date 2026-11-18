@@ -1,6 +1,7 @@
 package com.travelalbum.service;
 
 import com.travelalbum.dto.request.CreatePaymentRequest;
+import com.travelalbum.dto.response.OrderStatusResponse;
 import com.travelalbum.dto.response.PaymentOrderResponse;
 import com.travelalbum.dto.response.PaymentUrlResponse;
 import com.travelalbum.dto.response.VnpayIpnResponse;
@@ -20,4 +21,6 @@ public interface PaymentService {
     VnpayIpnResponse processIpn(Map<String, String> params);
 
     List<PaymentOrderResponse> getUserPaymentHistory(Long userId);
+
+    OrderStatusResponse getOrderStatus(String orderId, Long userId);
 }

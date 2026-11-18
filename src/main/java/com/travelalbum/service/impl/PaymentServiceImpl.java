@@ -2,6 +2,7 @@ package com.travelalbum.service.impl;
 
 import com.travelalbum.config.VnpayProperties;
 import com.travelalbum.dto.request.CreatePaymentRequest;
+import com.travelalbum.dto.response.OrderStatusResponse;
 import com.travelalbum.dto.response.PaymentOrderResponse;
 import com.travelalbum.dto.response.PaymentUrlResponse;
 import com.travelalbum.dto.response.VnpayIpnResponse;
@@ -247,6 +248,25 @@ public class PaymentServiceImpl implements PaymentService {
                 .stream()
                 .map(PaymentOrderResponse::from)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OrderStatusResponse getOrderStatus(String orderId, Long userId) {
+        PaymentOrder order = paymentOrderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn hàng: " + orderId));
+
+        return OrderStatusResponse.builder()
+                .orderId(order.getOrderId())
+                .status(order.getStatus().name())
+                .planId(order.getPlanId())
+                .planName(order.getPlanName())
+                .storageGb(order.getStorageGb())
+                .amount(order.getAmount())
+                .userStorageQuota(order.getUser() != null ? order.getUser().getStorageQuota() : null)
+                .message(order.getStatus() == PaymentStatus.SUCCESS ? "Giao dịch thành công" :
+                        (order.getStatus() == PaymentStatus.FAILED ? "Giao dịch không thành công" : "Đang chờ thanh toán"))
+                .build();
     }
 
     private void applyStorageUpgrade(PaymentOrder order) {

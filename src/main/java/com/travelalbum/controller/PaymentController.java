@@ -2,6 +2,7 @@ package com.travelalbum.controller;
 
 import com.travelalbum.common.ApiResponse;
 import com.travelalbum.dto.request.CreatePaymentRequest;
+import com.travelalbum.dto.response.OrderStatusResponse;
 import com.travelalbum.dto.response.PaymentOrderResponse;
 import com.travelalbum.dto.response.PaymentUrlResponse;
 import com.travelalbum.dto.response.VnpayIpnResponse;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -59,5 +61,13 @@ public class PaymentController {
             @AuthenticationPrincipal UserPrincipal principal) {
         List<PaymentOrderResponse> history = paymentService.getUserPaymentHistory(principal.getId());
         return ApiResponse.success("OK", history);
+    }
+
+    @GetMapping("/orders/{orderId}/status")
+    public ApiResponse<OrderStatusResponse> getOrderStatus(
+            @PathVariable String orderId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        Long userId = principal != null ? principal.getId() : null;
+        return ApiResponse.success("OK", paymentService.getOrderStatus(orderId, userId));
     }
 }

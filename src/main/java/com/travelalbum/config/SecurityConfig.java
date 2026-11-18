@@ -66,7 +66,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/dev/**").permitAll()
                         .requestMatchers("/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers("/api/share/**").permitAll()
-                        .requestMatchers("/api/payments/vnpay/return", "/api/payments/vnpay/vnpay-ipn").permitAll()
+                        .requestMatchers("/api/payments/vnpay/return", "/api/payments/vnpay/vnpay-ipn", "/api/payments/vnpay/orders/*/status").permitAll()
                         // Chỉ tải ảnh gốc để public ở tầng Security vì người xem qua share link
                         // (?token=) không đăng nhập; quyền thật được kiểm tra trong
                         // PhotoServiceImpl.getPhotoForDownload (owner/member/share token).
