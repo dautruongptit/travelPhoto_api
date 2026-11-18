@@ -17,6 +17,8 @@ public class UserResponse {
     private String role;
     private LocalDateTime lastLoginAt;
     private String lastLoginIp;
+    private Long storageUsed;
+    private Long storageQuota;
 
     public static UserResponse from(User u) {
         return UserResponse.builder()
@@ -28,6 +30,8 @@ public class UserResponse {
             .role(u.getRole().name())
             .lastLoginAt(u.getLastLoginAt())
             .lastLoginIp(u.getLastLoginIp())
+            .storageUsed(u.getStorageUsed())
+            .storageQuota(u.getStorageQuota())
             .build();
     }
 }
